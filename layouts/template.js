@@ -1,4 +1,4 @@
-const TEMPLATE = {
+registerLayout("layout name", {
 "'": {distance: 1, hand: "left", finger: "pinky"},
 ",": {distance: 1, hand: "left", finger: "ring"},
 ".": {distance: 1, hand: "left", finger: "middle"},
@@ -34,5 +34,4 @@ const TEMPLATE = {
 "w": {distance: 1, hand: "right", finger: "middle"},
 "v": {distance: 1, hand: "right", finger: "ring"},
 "z": {distance: 1, hand: "right", finger: "pinky"},
-" ": {distance: 0, hand: "any", finger: "thumb"},
-};
+});
