@@ -1,0 +1,11 @@
+#text {
+	border: 1px solid;
+}
+
+#text .contents {
+	width: 100%;
+	margin: 1em;
+	padding: 1em;
+	min-height: 5em;
+	font-family: sans-serif;
+}

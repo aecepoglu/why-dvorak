@@ -6,7 +6,24 @@ function registerLayout(name, layout) {
 		layout: layout
 	});
 
-	console.log("registered layout", name, layout);
+	console.log("registered layout", name);
+}
+
+function getFile(path) {
+	return new Promise(function(resolve, reject) {
+		var xhr = new XMLHttpRequest();
+		xhr.onreadystatechange = function() {
+			if (xhr.readyState == 4) {
+				if (xhr.status == 200) {
+					resolve(xhr.responseText);
+				} else {
+					reject(xhr);
+				}
+			 }
+		};
+		xhr.open("GET", path);
+		xhr.send();
+	});
 }
 
 function foo(text, layout) {
@@ -48,4 +65,15 @@ function foo(text, layout) {
 		distanceTravelled: distanceCount,
 		length: chars.length
 	};
+}
+
+function analyze(text) {
+	return layouts.map(l => {
+		let x = foo(text, l.layout);
+
+		return {
+			layout: l.name,
+			stats: x
+		};
+	});
 }

@@ -8,8 +8,11 @@
 	<script type="text/javascript" src="layouts/dvorak.js"></script>
 	<script type="text/javascript" src="layouts/colemak.js"></script>
 	<script type="text/javascript" src="layouts/tr-f.js"></script>
-	<script type="text/plain" src="texts/one.txt"></script>
-	<script type="text/plain" src="texts/two.txt"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
+	<script src="https://code.highcharts.com/highcharts.js"></script>
+
+	<link rel="stylesheet" type="text/css" href="css/loading-anim.css"></script>
+	<link rel="stylesheet" type="text/css" href="css/style.css"></script>
 </head>
 
 <body>
@@ -17,20 +20,135 @@
 	<h2>A statistical approach</h2>
 	
 	What makes the Dvorak keyboard layout better?
-	
+
 	<div id="fingerChart"></div>
 	<div id="handChart"></div>
 	<div id="distanceChart"></div>
 
-	<h4>Same Finger Count</h4>
-	<p>Same Finger Count indicates how many times the same finger was used consecutively.</p>
-	<p>With QWERTY keyboard when typing the word "yumminess", you will have to use your right-index finger 4 times consecutively. We want this number to be low, as that means when one finger presses a key the other can get ready to press the next key.</p>
+	<div id="texts">
+		<div id="text-0" class="with-loading-anim">
+			<div class="loading-anim hidden">
+				<img src="loading.gif"></img>
+			</div>
+			<div class="contents" readonly="true"></div>
+		</div>
+		<div id="text-1" class="with-loading-anim">
+			<div class="loading-anim hidden">
+				<img src="loading.gif"></img>
+			</div>
+			<div class="contents" readonly="true"></div>
+		</div>
+	</div>
 
-	<h4>Same Hand Count</h4>
-	<p>Same Hand Count indicates how many times the same hand was used consecutively.</p>
-	<p>With QWERTY keyboard to type the word "starwars" your right hand will sit idle while your left hand types the entire word.</p>
+	<hr/>
 
-	<h4>Distance Travelled</h4>
-	<p>Distance Travelled shows how far the fingers had to travel from their resting positions in the home row.</p>
-	<p>For the QWERTY keyboard, the "F" key is considered to be at distance 0, because the left-index finger rests on it. "G" key is at distance 1 and "T" is at distance 2.</p>
+	<div style="font-size: 0.8em">
+		<h4>Same Finger Count</h4>
+		<p>Same Finger Count indicates how many times the same finger was used consecutively.</p>
+		<p>With QWERTY keyboard when typing the word "yumminess", you will have to use your right-index finger 4 times consecutively. We want this number to be low, as that means when one finger presses a key the other can get ready to press the next key.</p>
+
+		<h4>Same Hand Count</h4>
+		<p>Same Hand Count indicates how many times the same hand was used consecutively.</p>
+		<p>With QWERTY keyboard to type the word "starwars" your right hand will sit idle while your left hand types the entire word.</p>
+
+		<h4>Distance Travelled</h4>
+		<p>Distance Travelled shows how far the fingers had to travel from their resting positions in the home row.</p>
+		<p>For the QWERTY keyboard, the "F" key is considered to be at distance 0, because the left-index finger rests on it. "G" key is at distance 1 and "T" is at distance 2.</p>
+	</div>
+
+	<script type="text/javascript">
+		var $textContainer;
+		var $textarea;
+
+		const PROP1 = {
+			chart: {
+				type: "column"
+			},
+			title: {
+				text: "Monthly Average Rainfall"
+			},
+			subtitle: {
+				text: "Source: WorldClimate.com"
+			},
+			yAxis: {
+				min: 0,
+				title: {
+					text: "SameHandCount"
+				}
+			},
+			plotOptions: {
+				column: {
+					pointPadding: 0.2,
+					borderWidth: 0
+				}
+			},
+		};
+		const TEXTS = [
+			"texts/one.txt",
+			"texts/two.txt",
+		];
+
+		var sfc = Highcharts.chart('fingerChart', $.extend({
+			xAxis: {
+				categories: layouts.map(l => l.name),
+				crosshair: true
+			},
+			tooltip: {
+				headerFormat: '<span style="font-size:10px">{point.key}</span><table>',
+				pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' +
+					'<td style="padding:0"><b>{point.y:.1f} mm</b></td></tr>',
+				footerFormat: '</table>',
+				shared: true,
+				useHTML: true
+			},
+			series: layouts.map(l => {
+				return {
+					name: l.name,
+					data: [0]
+				};
+			})
+		}, PROP1));
+
+		function showFile(path, $container) {
+			$container.addClass("loading");
+
+			return getFile(path).then(t => {
+				$container.find(".contents").html(t);
+				$container.removeClass("loading");
+
+				return t;
+			});
+		}
+
+		function analyzeFile(path) {
+			showFile(path).then(t => {
+				let x = analyze(t);
+				console.log(x);
+			});
+		}
+
+		$(function() {
+			let $texts = $("#texts");
+			let promises = TEXTS.map((path, i) => {
+				let $container = $texts.children()[i];
+				return showFile(path, $container);
+			});
+
+			Promise.all(promises).then(texts => {
+				return texts.map(t => {
+					return analyze(t);
+				});
+			}).then(results => {
+				var sfcSeries = [];
+				var shcSeries = [];
+				var dtSeries = [];
+
+				results.forEach(r => {
+					sfcSeries.push(r.stats.sameFingerCount);
+					shcSeries.push(r.stats.sameHandCount);
+					dtSeries.push(r.stats.distanceTravelled);
+				});
+			});
+		});
+	</script>
 </body>

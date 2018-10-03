@@ -1,0 +1,43 @@
+/*
+organize the container like so:
+
+		<div class="with-loading-anim">
+			<div class="loading-anim">
+				<!-- put the loading animation here. For example a spinner gif -->
+			</div>
+
+			<div class="contents">
+				<!-- the content goes here -->
+			</div>
+		</div>
+*/
+
+.with-loading-anim {
+	position: relative;
+}
+
+.with-loading-anim .loading-anim {
+	position: absolute;
+
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 1;
+	margin: 20px 0;
+	text-align: center;
+
+	opacity: 0;
+	visibility: hidden;
+	transition: visibility 0s linear 0.5s, opacity 0.5s;
+}
+
+.with-loading-anim.loading .contents {
+	min-height: 190px;
+}
+
+.with-loading-anim.loading .loading-anim {
+	visibility: visible;
+	opacity: 1;
+	transition: none;
+}
