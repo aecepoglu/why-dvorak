@@ -1,9 +1,10 @@
 var layouts = [];
 
-function registerLayout(name, layout) {
+function registerLayout(name, layout, isEnabled) {
 	layouts.push({
 		name: name,
-		layout: layout
+		layout: layout,
+		isEnabled: isEnabled !== false
 	});
 
 	console.log("registered layout", name);
@@ -55,25 +56,24 @@ function foo(text, layout) {
 			}
 		});
 
-	//console.log("same hand count: " + sameHandCount + ". normalized: " + (sameHandCount / chars.length));
-	//console.log("same finger count: " + sameFingerCount + ". normalized: " + (sameFingerCount / chars.length));
-	//console.log("distance traveled: " + distanceCount + ". normalized: " + (distanceCount / chars.length));
+	let factor = 100 / chars.length;
 
 	return {
-		sameHandCount: sameHandCount,
-		sameFingerCount: sameFingerCount,
-		distanceTravelled: distanceCount,
-		length: chars.length
+		sameHandCount: sameHandCount * factor,
+		sameFingerCount: sameFingerCount * factor,
+		distanceTravelled: distanceCount * factor
 	};
 }
 
 function analyze(text) {
-	return layouts.map(l => {
-		let x = foo(text, l.layout);
+	return layouts
+		.filter(l => l.isEnabled)
+		.map(l => {
+			let x = foo(text, l.layout);
 
-		return {
-			layout: l.name,
-			stats: x
-		};
-	});
+			return {
+				layout: l.name,
+				stats: x
+			};
+		});
 }

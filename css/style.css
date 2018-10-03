@@ -1,3 +1,21 @@
+#charts {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+#charts > * {
+	width: 100%;
+}
+@media only screen and (min-width: 992px) {
+	#charts > * {
+		width: 33%;
+	}
+}
+
+span.best {
+	font-weight: bold;
+}
+
 #text {
 	border: 1px solid;
 }

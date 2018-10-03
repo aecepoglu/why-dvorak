@@ -36,6 +36,6 @@ registerLayout("f-turkish", {
 "z": {distance: 2, hand: "sag", finger: "index"},
 "s": {distance: 1, hand: "sag", finger: "index"},
 "b": {distance: 1, hand: "sag", finger: "middle"},
-",": {distance: 1, hand: "sag", finger: "ring"},
-".": {distance: 1, hand: "sag", finger: "pinky"},
-});
+//",": {distance: 1, hand: "sag", finger: "ring"},
+//".": {distance: 1, hand: "sag", finger: "pinky"},
+}, false);

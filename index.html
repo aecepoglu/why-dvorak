@@ -1,7 +1,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Frameset//EN" "http://www.w3.org/TR/html4/frameset.dtd">
 
 <head>
-	</title>Why Dvorak?</title>
+	<title>Why Dvorak?</title>
 
 	<script type="text/javascript" src="code.js"></script>
 	<script type="text/javascript" src="layouts/qwerty.js"></script>
@@ -16,15 +16,17 @@
 </head>
 
 <body>
-	<h1>Why Dvorak?</h1>
-	<h2>A statistical approach</h2>
+	<h1>Which Is The Best Keyboard Layout?</h1>
 	
-	What makes the Dvorak keyboard layout better?
+	Out of <span id="layouts">most popular keyboard layouts</span>, which is the best?
 
-	<div id="fingerChart"></div>
-	<div id="handChart"></div>
-	<div id="distanceChart"></div>
+	<div id="charts">
+		<div id="fingerChart" class="chart"></div>
+		<div id="handChart" class="chart"></div>
+		<div id="distanceChart" class="chart"></div>
+	</div>
 
+	<!--
 	<div id="texts">
 		<div id="text-0" class="with-loading-anim">
 			<div class="loading-anim hidden">
@@ -32,13 +34,19 @@
 			</div>
 			<div class="contents" readonly="true"></div>
 		</div>
-		<div id="text-1" class="with-loading-anim">
-			<div class="loading-anim hidden">
-				<img src="loading.gif"></img>
-			</div>
-			<div class="contents" readonly="true"></div>
-		</div>
 	</div>
+	-->
+
+	<hr/>
+
+	<h2>Conclusion</h2>
+	<ul>
+		<li>Layout with least travel: <span id="bestDistance" class="best">...</span></li>
+		<li>Layout with least same-hand-count: <span id="bestHand" class="best">...</span></li>
+		<li>Layout with least same-finger-count: <span id="bestFinger" class="best">...</span></li>
+	</ul>
+
+	<p><span id="bestLayout"></p>
 
 	<hr/>
 
@@ -46,60 +54,49 @@
 		<h4>Same Finger Count</h4>
 		<p>Same Finger Count indicates how many times the same finger was used consecutively.</p>
 		<p>With QWERTY keyboard when typing the word "yumminess", you will have to use your right-index finger 4 times consecutively. We want this number to be low, as that means when one finger presses a key the other can get ready to press the next key.</p>
+		<p>The number in the chart is normalized for a text length of 100 characters.</p>
 
 		<h4>Same Hand Count</h4>
 		<p>Same Hand Count indicates how many times the same hand was used consecutively.</p>
 		<p>With QWERTY keyboard to type the word "starwars" your right hand will sit idle while your left hand types the entire word.</p>
+		<p>The number in the chart is normalized for a text length of 100 characters.</p>
 
 		<h4>Distance Travelled</h4>
 		<p>Distance Travelled shows how far the fingers had to travel from their resting positions in the home row.</p>
 		<p>For the QWERTY keyboard, the "F" key is considered to be at distance 0, because the left-index finger rests on it. "G" key is at distance 1 and "T" is at distance 2.</p>
+		<p>The number in the chart is normalized for a text length of 100 characters.</p>
 	</div>
 
 	<script type="text/javascript">
+		layouts = layouts.filter(l => l.isEnabled);
+		$("#layouts").html(layouts.map(x => x.name).join(", "));
+
 		var $textContainer;
 		var $textarea;
 
-		const PROP1 = {
+		const CHART_PROPS = {
 			chart: {
 				type: "column"
 			},
 			title: {
-				text: "Monthly Average Rainfall"
+				text: ""
 			},
 			subtitle: {
-				text: "Source: WorldClimate.com"
+				text: ""
+			},
+			xAxis: {
+				categories: [],
+				crosshair: true
 			},
 			yAxis: {
 				min: 0,
-				title: {
-					text: "SameHandCount"
-				}
 			},
+			tooltip: {},
 			plotOptions: {
 				column: {
 					pointPadding: 0.2,
 					borderWidth: 0
 				}
-			},
-		};
-		const TEXTS = [
-			"texts/one.txt",
-			"texts/two.txt",
-		];
-
-		var sfc = Highcharts.chart('fingerChart', $.extend({
-			xAxis: {
-				categories: layouts.map(l => l.name),
-				crosshair: true
-			},
-			tooltip: {
-				headerFormat: '<span style="font-size:10px">{point.key}</span><table>',
-				pointFormat: '<tr><td style="color:{series.color};padding:0">{series.name}: </td>' +
-					'<td style="padding:0"><b>{point.y:.1f} mm</b></td></tr>',
-				footerFormat: '</table>',
-				shared: true,
-				useHTML: true
 			},
 			series: layouts.map(l => {
 				return {
@@ -107,14 +104,41 @@
 					data: [0]
 				};
 			})
-		}, PROP1));
+		};
+		const TEXTS = [
+			"texts/common-words.txt",
+			"texts/sherlock.txt",
+			"texts/dvorak.txt",
+		];
+
+		var sameFingerChart = Highcharts.chart('fingerChart', $.extend(true, {
+			yAxis: {
+				title: {
+					text: "Same Finger Count %"
+				}
+			},
+		}, CHART_PROPS));
+		var sameHandChart = Highcharts.chart('handChart', $.extend(true, {
+			yAxis: {
+				title: {
+					text: "Same Hand Count %"
+				}
+			},
+		}, CHART_PROPS));
+		var distanceChart = Highcharts.chart('distanceChart', $.extend(true, {
+			yAxis: {
+				title: {
+					text: "Distance Travelled %"
+				}
+			},
+		}, CHART_PROPS));
 
 		function showFile(path, $container) {
-			$container.addClass("loading");
+			//$container.addClass("loading");
 
 			return getFile(path).then(t => {
-				$container.find(".contents").html(t);
-				$container.removeClass("loading");
+				//$container.find(".contents").html(t);
+				//$container.removeClass("loading");
 
 				return t;
 			});
@@ -127,27 +151,98 @@
 			});
 		}
 
+		function findBest(key, arr) {
+			var bestIndex = -1;
+			var bestVal = 101;
+			arr.forEach((it, i) => {
+				let val = it.stats[key].reduce((acc, x) => (acc+x));
+				if (val < bestVal) {
+					bestIndex = i;
+					bestVal = val;
+				}
+			});
+
+			return arr[bestIndex].layout;
+		}
+
 		$(function() {
 			let $texts = $("#texts");
 			let promises = TEXTS.map((path, i) => {
-				let $container = $texts.children()[i];
+				let $container = $($texts.children()[i]);
 				return showFile(path, $container);
 			});
+
+			let inputNames = TEXTS.map(t => t.split("/").pop());
+			sameFingerChart.xAxis[0].update({categories: inputNames});
+			sameHandChart.xAxis[0].update({categories: inputNames});
+			distanceChart.xAxis[0].update({categories: inputNames});
 
 			Promise.all(promises).then(texts => {
 				return texts.map(t => {
 					return analyze(t);
 				});
-			}).then(results => {
-				var sfcSeries = [];
-				var shcSeries = [];
-				var dtSeries = [];
+			}).then(listsOfResults => {
+				/* listsOfResults: [
+					[{
+						layout: "dvorak",
+						stats: {
+							sameFingerCount: number,
+							sameHandCount: number,
+							distanceTravelled: number
+						}
+					}, {
+						layout: "qwerty",
+						stats: {
+							sameFingerCount: number,
+							sameHandCount: number,
+							distanceTravelled: number
+						}
+					}]
+				]
+				*/
 
-				results.forEach(r => {
-					sfcSeries.push(r.stats.sameFingerCount);
-					shcSeries.push(r.stats.sameHandCount);
-					dtSeries.push(r.stats.distanceTravelled);
+				let results = listsOfResults.reduce((acc, statsOfLayouts) => {
+					statsOfLayouts.forEach((r, i) => {
+						acc[i].stats.sameFingerCount.push(r.stats.sameFingerCount);
+						acc[i].stats.sameHandCount.push(r.stats.sameFingerCount);
+						acc[i].stats.distanceTravelled.push(r.stats.distanceTravelled);
+					});
+
+					return acc;
+				}, layouts.map(l => {
+					return {
+						layout: l.name,
+						stats: {
+							sameFingerCount: [],
+							sameHandCount: [],
+							distanceTravelled: []
+						}
+					};
+				}));
+
+				console.log(results);
+
+				results.forEach(({layout, stats}) => {
+					sameFingerChart.series
+						.find(x => x.name == layout)
+						.setData(stats.sameFingerCount);
+					sameHandChart.series
+						.find(x => x.name == layout)
+						.setData(stats.sameHandCount);
+					distanceChart.series
+						.find(x => x.name == layout)
+						.setData(stats.distanceTravelled);
 				});
+
+				let bestDistanceLayout = findBest("distanceTravelled", results);
+				let bestHandLayout = findBest("sameHandCount", results);
+				let bestFingerLayout = findBest("sameFingerCount", results);
+
+				$("#bestDistance").html(bestDistanceLayout);
+				$("#bestHand").html(bestHandLayout);
+				$("#bestFinger").html(bestFingerLayout);
+			}).catch(err => {
+				console.log("error", err);
 			});
 		});
 	</script>
