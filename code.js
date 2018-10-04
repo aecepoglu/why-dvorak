@@ -40,7 +40,7 @@ function foo(text, layout) {
 		let cur = layout[c];
 
 		if (!cur) {
-			//console.debug("skipped '" + c + "' in " + layout.name);
+			//console.debug("skipped '" + c + "');
 			return;
 		}
 
