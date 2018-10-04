@@ -153,7 +153,7 @@
 
 		function findBest(key, arr) {
 			var bestIndex = -1;
-			var bestVal = 101;
+			var bestVal = Number.MAX_SAFE_INTEGER;
 			arr.forEach((it, i) => {
 				let val = it.stats[key].reduce((acc, x) => (acc+x));
 				if (val < bestVal) {

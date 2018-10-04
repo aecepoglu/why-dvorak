@@ -34,4 +34,7 @@ registerLayout("colemak", {
 //",": {distance: 1, hand: "right", finger: "middle"},
 //".": {distance: 1, hand: "right", finger: "ring"},
 //"/": {distance: 1, hand: "right", finger: "pinky"},
+
+" ": {distance: 0, hand: "any", finger: "thumb"},
+"\n": {distance: 3, hand: "right", finger: "pinky"},
 });

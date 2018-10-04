@@ -31,32 +31,36 @@ function foo(text, layout) {
 	let sameHandCount = 0;
 	let sameFingerCount = 0;
 	let distanceCount = 0;
+	let count = 0;
 
-	let chars = text.split("");
+	let chars = text.toLowerCase().split("");
 
-	chars
-		.map(c => layout[c])
-		.forEach((cur, index, list) => {
-			if (!cur) {
-				return;
+	var prev;
+	chars.forEach((c, index, list) => {
+		let cur = layout[c];
+
+		if (!cur) {
+			//console.debug("skipped '" + c + "' in " + layout.name);
+			return;
+		}
+
+		distanceCount += cur.distance;
+		count ++;
+
+		if (cur.hand == "any") {
+			prev = undefined;
+		} else if (prev && prev.hand == cur.hand) {
+			sameHandCount ++;
+
+			if (prev.finger == cur.finger) {
+				sameFingerCount ++;
 			}
+		}
 
-			distanceCount += cur.distance;
+		prev = cur;
+	});
 
-			let prev = index > 0
-				? list[index - 1]
-				: undefined;
-
-			if (prev && prev.hand == cur.hand) {
-				sameHandCount ++;
-
-				if (prev.finger == cur.finger) {
-					sameFingerCount ++;
-				}
-			}
-		});
-
-	let factor = 100 / chars.length;
+	let factor = 100 / count;
 
 	return {
 		sameHandCount: sameHandCount * factor,

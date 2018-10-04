@@ -34,4 +34,7 @@ registerLayout("layout name", {
 "w": {distance: 1, hand: "right", finger: "middle"},
 "v": {distance: 1, hand: "right", finger: "ring"},
 "z": {distance: 1, hand: "right", finger: "pinky"},
+
+" ": {distance: 0, hand: "any", finger: "thumb"},
+"\n": {distance: 3, hand: "right", finger: "pinky"},
 });
