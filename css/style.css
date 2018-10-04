@@ -27,3 +27,10 @@ span.best {
 	min-height: 5em;
 	font-family: sans-serif;
 }
+
+#signature {
+	border-top: 1px solid;
+	padding-top: 0.2em;
+	text-align: center;
+	font-size: 0.7em;
+}
