@@ -1,0 +1,4 @@
+(executable
+	(name code)
+	(libraries js_of_ocaml-lwt)
+)
