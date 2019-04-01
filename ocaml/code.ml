@@ -3,18 +3,42 @@ open Lwt.Infix
 type hand = Left | Right
 type finger = Thumb | Index | Middle | Ring | Pinky
 
-type layout = {
-  name : string;
-  keys : (char, (hand * finger * int)) Hashtbl.t;
-}
-
 type 'a stats = {
   same_hand   : 'a;
   same_finger : 'a;
   distance    : 'a;
 }
 
-let analyze_text (l:layout) (text:string) :(float stats) =
+module Layout = struct
+  type t = {
+    name : string;
+    keys : (char, (hand * finger * int)) Hashtbl.t;
+  }
+
+  let parse_layout name lookup =
+    let open Js_of_ocaml in
+    let map = Hashtbl.create 64 in
+      List.iter (fun (c, x) -> Hashtbl.add map c x) lookup;
+      {name = (Js.to_string name); keys=map}
+
+  let of_string_and_name obj =
+    let open Js_of_ocaml.Js in
+    let tbl = Hashtbl.create 64 in
+    let keys = object_keys obj in
+      keys##forEach
+        (wrap_callback (fun js_key _ _ ->
+             let key = "" in
+               (* Unsafe.get obj js_key*)
+               Hashtbl.add tbl 'a' (Left, Thumb, 0)
+           )
+        )
+      ;
+      {name="placeholder"; keys=tbl}
+
+
+end
+
+let analyze_text (l:Layout.t) (text:string) :(float stats) =
   let len = String.length text in
   let rec aux s prev_hand prev_finger i =
     if i < len
@@ -29,7 +53,7 @@ let analyze_text (l:layout) (text:string) :(float stats) =
              same_finger = (if (hand, finger) = (prev_hand, prev_finger)
                             then s.same_finger + 1
                             else s.same_finger);
-             distance = s.distance + 1;
+             distance = s.distance + dist;
            } in
              aux s' hand finger (i + 1)
         | None ->

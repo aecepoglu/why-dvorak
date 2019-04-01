@@ -1,4 +1,5 @@
 (executable
 	(name code)
 	(libraries js_of_ocaml-lwt)
+	(preprocess (pps js_of_ocaml-ppx))
 )

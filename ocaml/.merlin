@@ -1,0 +1,17 @@
+EXCLUDE_QUERY_DIR
+B /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/bytes
+B /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/js_of_ocaml
+B /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/js_of_ocaml-lwt
+B /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/lwt
+B /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/result
+B /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/uchar
+B ../_build/default/ocaml/.code.eobjs/byte
+S /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/bytes
+S /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/js_of_ocaml
+S /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/js_of_ocaml-lwt
+S /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/lwt
+S /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/result
+S /home/ahmetcepoglu/proj/why-dvorak/_opam/lib/uchar
+S .
+FLG -ppx '/home/ahmetcepoglu/proj/why-dvorak/_build/default/.ppx/3edf09989a28fce237f8b735bd39446a/ppx.exe --as-ppx'
+FLG -w @a-4-29-40-41-42-44-45-48-58-59-60-40 -strict-sequence -strict-formats -short-paths -keep-locs
