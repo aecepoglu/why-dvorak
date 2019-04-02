@@ -1,8 +1,7 @@
 BCJS = _build/default/ocaml/*.bc.js
 DEST = docs/
 
-deploy: $(BCJS) public_assets
-	@mkdir -p $(DEST)
+deploy: $(BCJS) public_assets dest
 	cp -r $(BCJS) $(DEST)
 	firefox http://localhost:8080
 
@@ -10,8 +9,11 @@ $(BCJS): ocaml/code.ml
 	cd ocaml
 	dune build ocaml/code.bc.js
 
-public_assets: public/*
+public_assets: public/* dest
 	cp -r public/* $(DEST)
+
+dest:
+	mkdir -p $(DEST)
 
 server: node_modules/.bin/http-server
 	node_modules/.bin/http-server $(DEST)
