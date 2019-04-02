@@ -10,33 +10,57 @@ type 'a stats = {
 }
 
 module Layout = struct
+  exception BadFinger of string
+  exception BadHand of string
+
   type t = {
     name : string;
     keys : (char, (hand * finger * int)) Hashtbl.t;
   }
 
-  let parse_layout name lookup =
+  let finger_of_string = function
+    | "thumb" -> Thumb
+    | "index" -> Index
+    | "middle" -> Middle
+    | "ring" -> Ring
+    | "pinky" -> Pinky
+    | x -> raise (BadFinger x)
+
+  let hand_of_string = function
+    | "left" -> Left
+    | "right" -> Right
+    | x -> raise (BadHand x)
+
+  (* TODO parse JSON object instead *)
+  let parse name obj :t =
     let open Js_of_ocaml in
-    let map = Hashtbl.create 64 in
-      List.iter (fun (c, x) -> Hashtbl.add map c x) lookup;
-      {name = (Js.to_string name); keys=map}
-
-  let of_string_and_name obj =
-    let open Js_of_ocaml.Js in
     let tbl = Hashtbl.create 64 in
-    let keys = object_keys obj in
+    let keys = Js.object_keys obj in
       keys##forEach
-        (wrap_callback (fun js_key _ _ ->
-             let key = "" in
-               (* Unsafe.get obj js_key*)
-               Hashtbl.add tbl 'a' (Left, Thumb, 0)
+        (Js.wrap_callback (fun js_key _ _ ->
+             let key = (Js.to_string js_key).[0] (* TODO unsafe access *) in
+             let it = Js.Unsafe.get obj js_key in
+             let finger = Js.Unsafe.get it "finger" |> Js.to_string |> finger_of_string in
+             let hand = Js.Unsafe.get it "hand" |> Js.to_string |> hand_of_string in
+             let dist = Js.Unsafe.get it "distance" in
+               Hashtbl.add tbl key (hand, finger, dist);
            )
-        )
-      ;
-      {name="placeholder"; keys=tbl}
-
-
+        );
+      { name;
+        keys = tbl;
+      }
 end
+
+class layouts_list = object
+  val mutable layouts : Layout.t list = []
+
+  method add x =
+    layouts <- (x :: layouts)
+end
+
+let layouts = new layouts_list
+
+let add_layout = layouts#add
 
 let analyze_text (l:Layout.t) (text:string) :(float stats) =
   let len = String.length text in
@@ -82,6 +106,15 @@ let http_get url =
 
 let () =
   print_endline "OCaml saying hi!";
+  let layouts = ["dvorak", "layouts/drovak.json";
+                 "qwerty", "layouts/qwerty.json";
+                 "colemak", "layouts/colemak.json";
+                ]
+                |> List.map (fun (a, b) -> a, load_json b)
+                |> List.map (fun (a, b) -> Layout.parse a b) in
+  let texts = ["texts/one.txt";
+               "texts/two.txt";
+              ] in
   http_get "texts/one.txt"
   >|= (function
       | Ok x -> print_endline x;
