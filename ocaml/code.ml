@@ -100,18 +100,22 @@ let http_get url =
          else Lwt.return_error body
     )
 
-let collect_results f results =
+let map_result f = function
+  | Ok x -> Ok (f x)
+  | Error _ as e -> e
+
+let collect_results results =
   List.fold_left (fun acc res ->
       match (acc, res) with
-      | Ok xs, Ok x -> Ok (f x xs)
-      | (Error _ as e), _ | _, (Error _ as e) -> e
+      | Ok xs,       Ok x    -> Ok (x :: xs)
+      | Error ys,    Error y -> Error (y :: ys)
+      | Ok _,        Error y -> Error [y]
+      | Error _ as e, _      -> e
     ) (Ok []) results
 
 let () =
   print_endline "OCaml saying hi!";
-  let texts = ["texts/one.txt";
-               "texts/two.txt";
-              ] in
+  let texts = ["texts/one.txt"] in
   let layouts = ["dvorak", "layouts/drovak.json";
                  "qwerty", "layouts/qwerty.json";
                  "colemak", "layouts/colemak.json";
@@ -119,42 +123,20 @@ let () =
     layouts
     |> List.map (fun (name, url) ->
         http_get url
-        >|= (function
-            | Ok body -> Some (Layout.parse name (Js_of_ocaml.Js.string body))
-            | _ -> None
-          )
+        >|= map_result
+              (fun body -> Layout.parse name (Js_of_ocaml.Js.string body))
       )
-    |> Lwt.nchoose                                 (*                    *)
-    >|= List.filter (function                      (*                    *)
-        | None -> false                            (*                    *)
-        | _ -> true                                (* use                *)
-      )                                            (* 'collect_results'  *)
-    >|= List.map (function                         (* here               *)
-        | Some x -> x                              (*                    *)
-        | None -> raise (Layout.BadFinger "TODO")  (*                    *)
-      )                                            (*                    *)
-    >>= (fun layouts -> 
+    |> Lwt.nchoose
+    >|= collect_results
+    >>= (fun result1 -> 
         List.map http_get texts
-        |> Lwt.nchoose
-        >|= collect_results (List.cons)
-        >|= (function
-            | Ok texts -> Ok (layouts, texts)
-            | Error x -> Error x
-          )
+                  |> Lwt.nchoose
+                  >|= collect_results
+                  >|= (fun result2 -> (match (result1, result2) with
+                                       | Ok a, Ok b -> Ok (a, b)
+                                       | Error e, _ | _, Error e -> Error e
+                                      )
+                      )
       )
-    >|= (function
-        | Ok (layouts, texts) ->
-           (* TODO collect analyses results here *)
-           List.iter
-             (fun layout ->
-                List.iter (fun text ->
-                    let _ = analyze_text layout text in
-                      ()
-                  )
-                  texts
-             )
-             layouts;
-           Some []
-        | Error _ -> None
-      )
+    >|= map_result (fun (_layouts, _texts) -> ())
     |> Lwt.ignore_result
