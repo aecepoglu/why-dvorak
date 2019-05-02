@@ -125,7 +125,9 @@ let () =
   let texts = ["texts/one.txt";
                "texts/two.txt";
               ] in
-  let layouts = ["dvorak", "layouts/dvorak.json";
+  let layouts = ["dvorak", "layouts/drovak.json";
+                 "qwerty", "layouts/qwerty.json";
+                 "colemak", "layouts/colemak.json";
                 ] in
     layouts
     |> List.map (fun (name, url) ->
@@ -152,7 +154,7 @@ let () =
     >>= (fun layouts -> 
         Printf.printf "len(texts)0: %d\n" (List.length texts);
         List.map http_get texts
-        |> Lwt.join
+        |> Lwt.nchoose
         >|= collect_results
         >|= (function
             | Ok texts' -> 
