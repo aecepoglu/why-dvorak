@@ -1,0 +1,42 @@
+{
+"f": {"distante": 1, "hand": "left", "finger": "pinky"},
+"g": {"distante": 1, "hand": "left", "finger": "ring"},
+"ğ": {"distante": 1, "hand": "left", "finger": "middle"},
+"ı": {"distante": 1, "hand": "left", "finger": "index"},
+"o": {"distante": 2, "hand": "left", "finger": "index"},
+"d": {"distante": 2, "hand": "right", "finger": "index"},
+
+"r": {"distante": 1, "hand": "right", "finger": "index"},
+"n": {"distante": 1, "hand": "right", "finger": "middle"},
+"h": {"distante": 1, "hand": "right", "finger": "ring"},
+"p": {"distante": 1, "hand": "right", "finger": "pinky"},
+"q": {"distante": 2, "hand": "right", "finger": "pinky"},
+
+"w": {"distante": 3, "hand": "right", "finger": "pinky"},
+"u": {"distante": 0, "hand": "left", "finger": "pinky"},
+"i": {"distante": 0, "hand": "left", "finger": "ring"},
+"e": {"distante": 0, "hand": "left", "finger": "middle"},
+"a": {"distante": 0, "hand": "left", "finger": "index"},
+"ü": {"distante": 1, "hand": "left", "finger": "index"},
+
+"t": {"distante": 1, "hand": "right", "finger": "index"},
+"k": {"distante": 0, "hand": "right", "finger": "index"},
+"m": {"distante": 0, "hand": "right", "finger": "middle"},
+"l": {"distante": 0, "hand": "right", "finger": "ring"},
+"y": {"distante": 0, "hand": "right", "finger": "pinky"},
+"ş": {"distante": 1, "hand": "right", "finger": "pinky"},
+
+"x": {"distante": 2, "hand": "right", "finger": "pinky"},
+"j": {"distante": 1, "hand": "left", "finger": "pinky"},
+"ö": {"distante": 1, "hand": "left", "finger": "ring"},
+"v": {"distante": 1, "hand": "left", "finger": "middle"},
+"c": {"distante": 1, "hand": "left", "finger": "index"},
+"ç": {"distante": 2, "hand": "left", "finger": "index"},
+
+"z": {"distante": 2, "hand": "right", "finger": "index"},
+"s": {"distante": 1, "hand": "right", "finger": "index"},
+"b": {"distante": 1, "hand": "right", "finger": "middle"},
+
+" ": {"distante": 0, "hand": "any", "finger": "thumb"},
+"\n": {"distante": 3, "hand": "right", "finger": "pinky"}
+}

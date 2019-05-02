@@ -1,6 +1,6 @@
 open Lwt.Infix
 
-type hand = Left | Right
+type hand = Left | Right | Any
 type finger = Thumb | Index | Middle | Ring | Pinky
 
 type 'a stats = {
@@ -25,32 +25,39 @@ module Layout = struct
   }
 
   let finger_of_string = function
-    | "thumb" -> Thumb
-    | "index" -> Index
-    | "middle" -> Middle
-    | "ring" -> Ring
-    | "pinky" -> Pinky
-    | x -> raise (BadFinger x)
+    | "thumb" -> Ok Thumb
+    | "index" -> Ok Index
+    | "middle" -> Ok Middle
+    | "ring" -> Ok Ring
+    | "pinky" -> Ok Pinky
+    | x -> Error ("unknown finger: \"" ^ x ^ "\"")
 
   let hand_of_string = function
-    | "left" -> Left
-    | "right" -> Right
-    | x -> raise (BadHand x)
+    | "left" -> Ok Left
+    | "right" -> Ok Right
+    | "any" -> Ok Any
+    | x -> Error ("Bad hand " ^ x)
 
   (* TODO parse JSON object instead *)
   let parse name json :t =
+    print_endline ("in parse method for " ^ name);
+    let tbl = Hashtbl.create 64 in
     let open Js_of_ocaml in
     let obj = Json.unsafe_input json in
-    let tbl = Hashtbl.create 64 in
     let keys = Js.object_keys obj in
       keys##forEach
         (Js.wrap_callback (fun js_key _ _ ->
-             let key = (Js.to_string js_key).[0] in
+             let s = Js.to_string js_key in
+             Printf.printf "key \"%s\" '%c'\n" s s.[0];
+             let key = s.[0] in
              let it = Js.Unsafe.get obj js_key in
              let finger = Js.Unsafe.get it "finger" |> Js.to_string |> finger_of_string in
              let hand = Js.Unsafe.get it "hand" |> Js.to_string |> hand_of_string in
              let dist = Js.Unsafe.get it "distance" in
-               Hashtbl.add tbl key (hand, finger, dist);
+               (match (finger, hand) with
+                | Ok(finger'), Ok(hand') -> Hashtbl.add tbl key (hand', finger', dist)
+                | Error(e), _ | _, Error(e) -> print_endline e
+               );
            )
         );
       { name;
@@ -100,27 +107,36 @@ let http_get url =
          else Lwt.return_error body
     )
 
-let collect_results f results =
-  List.fold_left (fun acc res ->
+let collect_results results =
+  let resp = List.fold_left (fun acc res ->
       match (acc, res) with
-      | Ok xs, Ok x -> Ok (f x xs)
+      | Ok xs, Ok x -> Ok (x :: xs)
       | (Error _ as e), _ | _, (Error _ as e) -> e
     ) (Ok []) results
+  in
+    (match resp with
+     | Ok a -> Printf.printf "%d -> %d\n" (List.length results) (List.length a)
+     | Error e -> print_endline e
+    );
+    resp
 
 let () =
   print_endline "OCaml saying hi!";
   let texts = ["texts/one.txt";
                "texts/two.txt";
               ] in
-  let layouts = ["dvorak", "layouts/drovak.json";
-                 "qwerty", "layouts/qwerty.json";
-                 "colemak", "layouts/colemak.json";
+  let layouts = ["dvorak", "layouts/dvorak.json";
                 ] in
     layouts
     |> List.map (fun (name, url) ->
         http_get url
         >|= (function
-            | Ok body -> Some (Layout.parse name (Js_of_ocaml.Js.string body))
+            | Ok body ->
+               let str = Js_of_ocaml.Js.string body in
+               Printf.printf "parsing %s: %s\n" name body;
+               let parsed = Layout.parse name str in
+               Printf.printf "done.\n";
+               Some parsed
             | _ -> None
           )
       )
@@ -134,27 +150,35 @@ let () =
         | None -> raise (Layout.BadFinger "TODO")  (*                    *)
       )                                            (*                    *)
     >>= (fun layouts -> 
+        Printf.printf "len(texts)0: %d\n" (List.length texts);
         List.map http_get texts
-        |> Lwt.nchoose
-        >|= collect_results (List.cons)
+        |> Lwt.join
+        >|= collect_results
         >|= (function
-            | Ok texts -> Ok (layouts, texts)
+            | Ok texts' -> 
+               Printf.printf "len(texts)1: %d\n" (List.length texts');
+               Ok (layouts, texts')
             | Error x -> Error x
           )
       )
     >|= (function
-        | Ok (layouts, texts) ->
-           (* TODO collect analyses results here *)
-           List.iter
-             (fun layout ->
-                List.iter (fun text ->
-                    let _ = analyze_text layout text in
-                      ()
-                  )
-                  texts
-             )
-             layouts;
-           Some []
+        | Ok (_layouts, texts) ->
+           (match (collect_results [Ok("ahmet"); Ok("emre"); Ok("cepoglu")]) with
+            | Ok(results) -> Printf.printf "num results %d\n" (List.length results)
+            | Error(e) -> print_endline e
+           );
+           Printf.printf "num texts: %d\n" (List.length texts);
+           List.iteri (fun num text -> 
+               print_string text;
+               let elem = Tyxml_js.Html.div [
+                   (Tyxml_js.Html.txt (string_of_int num));
+                   (Tyxml_js.Html.txt text)
+                 ] in
+                 Js_of_ocaml.Dom.appendChild
+                   (Js_of_ocaml.Dom_html.getElementById "texts")
+                   (Tyxml_js.To_dom.of_element elem)
+             ) texts;
+           Some ()
         | Error _ -> None
       )
     |> Lwt.ignore_result
