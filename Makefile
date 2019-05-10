@@ -3,7 +3,6 @@ DEST = docs/
 
 deploy: $(BCJS) public_assets dest
 	cp -r $(BCJS) $(DEST)
-	firefox http://localhost:8080
 
 $(BCJS): ocaml/code.ml
 	cd ocaml

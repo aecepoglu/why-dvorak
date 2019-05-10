@@ -40,7 +40,6 @@ module Layout = struct
 
   (* TODO parse JSON object instead *)
   let parse name json :t =
-    print_endline ("in parse method for " ^ name);
     let tbl = Hashtbl.create 64 in
     let open Js_of_ocaml in
     let obj = Json.unsafe_input json in
@@ -48,7 +47,6 @@ module Layout = struct
       keys##forEach
         (Js.wrap_callback (fun js_key _ _ ->
              let s = Js.to_string js_key in
-             Printf.printf "key \"%s\" '%c'\n" s s.[0];
              let key = s.[0] in
              let it = Js.Unsafe.get obj js_key in
              let finger = Js.Unsafe.get it "finger" |> Js.to_string |> finger_of_string in
@@ -107,80 +105,67 @@ let http_get url =
          else Lwt.return_error body
     )
 
-let collect_results results =
-  let resp = List.fold_left (fun acc res ->
-      match (acc, res) with
-      | Ok xs, Ok x -> Ok (x :: xs)
-      | (Error _ as e), _ | _, (Error _ as e) -> e
-    ) (Ok []) results
+let map_result f = function
+  | Ok a -> Ok (f a)
+  | Error _ as b -> b
+
+let join_promises xs =
+  let rec aux acc = function
+    | h :: t ->
+       Lwt.bind h (fun h' -> aux (h' :: acc) t)
+    | [] -> Lwt.return (List.rev acc)
   in
-    (match resp with
-     | Ok a -> Printf.printf "%d -> %d\n" (List.length results) (List.length a)
-     | Error e -> print_endline e
-    );
-    resp
+    aux [] xs
+
+let join_results xs =
+  let rec aux acc = function
+    | (Ok x) :: t -> aux (x :: acc) t
+    | (Error _ as e) :: _ -> e
+    | [] -> Ok acc
+  in
+    aux [] xs
+
+let (>|?=) a f = Lwt.map (map_result f) a
+
+let bind_promise_result f = function
+  | Ok x -> f x
+  | Error _ as e -> Lwt.return e
 
 let () =
   print_endline "OCaml saying hi!";
-  let texts = ["texts/one.txt";
+  let text_urls = ["texts/one.txt";
                "texts/two.txt";
               ] in
-  let layouts = ["dvorak", "layouts/drovak.json";
+  let layout_urls = ["dvorak", "layouts/dvorak.json";
                  "qwerty", "layouts/qwerty.json";
                  "colemak", "layouts/colemak.json";
                 ] in
-    layouts
-    |> List.map (fun (name, url) ->
-        http_get url
-        >|= (function
-            | Ok body ->
-               let str = Js_of_ocaml.Js.string body in
-               Printf.printf "parsing %s: %s\n" name body;
-               let parsed = Layout.parse name str in
-               Printf.printf "done.\n";
-               Some parsed
-            | _ -> None
-          )
-      )
-    |> Lwt.nchoose                                 (*                    *)
-    >|= List.filter (function                      (*                    *)
-        | None -> false                            (*                    *)
-        | _ -> true                                (* use                *)
-      )                                            (* 'collect_results'  *)
-    >|= List.map (function                         (* here               *)
-        | Some x -> x                              (*                    *)
-        | None -> raise (Layout.BadFinger "TODO")  (*                    *)
-      )                                            (*                    *)
-    >>= (fun layouts -> 
-        Printf.printf "len(texts)0: %d\n" (List.length texts);
-        List.map http_get texts
-        |> Lwt.nchoose
-        >|= collect_results
-        >|= (function
-            | Ok texts' -> 
-               Printf.printf "len(texts)1: %d\n" (List.length texts');
-               Ok (layouts, texts')
-            | Error x -> Error x
-          )
-      )
-    >|= (function
-        | Ok (_layouts, texts) ->
-           (match (collect_results [Ok("ahmet"); Ok("emre"); Ok("cepoglu")]) with
-            | Ok(results) -> Printf.printf "num results %d\n" (List.length results)
-            | Error(e) -> print_endline e
-           );
-           Printf.printf "num texts: %d\n" (List.length texts);
-           List.iteri (fun num text -> 
-               print_string text;
-               let elem = Tyxml_js.Html.div [
-                   (Tyxml_js.Html.txt (string_of_int num));
-                   (Tyxml_js.Html.txt text)
-                 ] in
-                 Js_of_ocaml.Dom.appendChild
-                   (Js_of_ocaml.Dom_html.getElementById "texts")
-                   (Tyxml_js.To_dom.of_element elem)
-             ) texts;
-           Some ()
-        | Error _ -> None
-      )
-    |> Lwt.ignore_result
+  List.map http_get text_urls
+  |> join_promises
+  >|= join_results
+  >>= bind_promise_result (fun texts ->
+      layout_urls
+      |> List.map (fun (name, url) ->
+          http_get url
+          >|?= Js_of_ocaml.Js.string
+          >|?= Layout.parse name
+        )
+      |> join_promises
+      >|= join_results
+      >|?= (fun layouts -> texts, layouts)
+    )
+  >|= (function
+      | Ok (texts, _layouts) ->
+         List.iteri (fun num text -> 
+             print_string text;
+             let elem = Js_of_ocaml_tyxml.Tyxml_js.Html.div [
+                 (Js_of_ocaml_tyxml.Tyxml_js.Html.txt (string_of_int num));
+                 (Js_of_ocaml_tyxml.Tyxml_js.Html.txt text)
+               ] in
+               Js_of_ocaml.Dom.appendChild
+                 (Js_of_ocaml.Dom_html.getElementById "texts")
+                 (Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_element elem)
+           ) texts
+      | Error e -> print_endline e
+    )
+  |> Lwt.ignore_result
