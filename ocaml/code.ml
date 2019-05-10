@@ -131,15 +131,59 @@ let bind_promise_result f = function
   | Ok x -> f x
   | Error _ as e -> Lwt.return e
 
+let array_find pred xs =
+  let rec aux i =
+    if i >= Array.length xs
+    then None
+    else
+      let x = xs.(i) in
+        if pred x
+        then Some x
+        else aux (i + 1)
+  in
+    aux 0
+
+module Highcharts = struct
+  open Js_of_ocaml
+  open Js_of_ocaml.Js.Unsafe
+
+  let create (dom_id:string) props =
+    fun_call
+      (global##.Highcharts##.chart)
+      [| inject (Js.string dom_id); props |]
+
+  let set_x_axis chart (categories:string array) =
+    Js.array_get
+      (chart##.xAxis)
+      0
+    |> Js.Optdef.to_option
+    |> (function
+        | Some x -> fun_call
+                      (x##.update)
+                      [| obj
+                           [|"categories", (inject (Js.array categories))|]
+                      |]
+        | None -> ()
+      )
+
+  let set_data chart layout_name stats =
+    Js.to_array (chart##.series)
+    |> array_find (fun x -> x##.name = layout_name)
+    |> (function
+        | Some x -> fun_call (x##.setData) stats.same_finger
+        | None -> ()
+      )
+end
+
 let () =
   print_endline "OCaml saying hi!";
   let text_urls = ["texts/one.txt";
-               "texts/two.txt";
-              ] in
+                   "texts/two.txt";
+                  ] in
   let layout_urls = ["dvorak", "layouts/dvorak.json";
-                 "qwerty", "layouts/qwerty.json";
-                 "colemak", "layouts/colemak.json";
-                ] in
+                     "qwerty", "layouts/qwerty.json";
+                     "colemak", "layouts/colemak.json";
+                    ] in
   List.map http_get text_urls
   |> join_promises
   >|= join_results
@@ -155,7 +199,13 @@ let () =
       >|?= (fun layouts -> texts, layouts)
     )
   >|= (function
-      | Ok (texts, _layouts) ->
+      | Ok (texts, layouts) ->
+         let same_finger_chart = Highcharts.create
+                                   "fingerChart"
+                                   (Js_of_ocaml.Js.Unsafe.obj [| |]) in
+         let _ = Highcharts.set_x_axis
+                   same_finger_chart
+                   [| "ahmet"; "emre" |] in
          List.iteri (fun num text -> 
              print_string text;
              let elem = Js_of_ocaml_tyxml.Tyxml_js.Html.div [
@@ -165,7 +215,15 @@ let () =
                Js_of_ocaml.Dom.appendChild
                  (Js_of_ocaml.Dom_html.getElementById "texts")
                  (Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_element elem)
-           ) texts
+           ) texts;
+         List.iter (fun layout ->
+             List.iter (fun text ->
+                 let _stats = analyze_text layout text in
+                   ()
+               )
+               texts
+           )
+           layouts
       | Error e -> print_endline e
     )
   |> Lwt.ignore_result
