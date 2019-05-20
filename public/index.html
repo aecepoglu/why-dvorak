@@ -120,13 +120,6 @@
 			"texts/dvorak.txt",
 		];
 
-		var sameFingerChart = Highcharts.chart('fingerChart', $.extend(true, {
-			yAxis: {
-				title: {
-					text: "Same Finger Count %"
-				}
-			},
-		}, CHART_PROPS));
 		var sameHandChart = Highcharts.chart('handChart', $.extend(true, {
 			yAxis: {
 				title: {
@@ -182,7 +175,6 @@
 			});
 
 			let inputNames = TEXTS.map(t => t.split("/").pop());
-			sameFingerChart.xAxis[0].update({categories: inputNames});
 			sameHandChart.xAxis[0].update({categories: inputNames});
 			distanceChart.xAxis[0].update({categories: inputNames});
 
@@ -232,9 +224,6 @@
 				console.log(results);
 
 				results.forEach(({layout, stats}) => {
-					sameFingerChart.series
-						.find(x => x.name == layout)
-						.setData(stats.sameFingerCount);
 					sameHandChart.series
 						.find(x => x.name == layout)
 						.setData(stats.sameHandCount);

@@ -9,6 +9,68 @@ type 'a stats = {
   distance    : 'a;
 }
 
+let map_result f = function
+  | Ok a -> Ok (f a)
+  | Error _ as b -> b
+
+let join_promises xs =
+  let rec aux acc = function
+    | h :: t ->
+       Lwt.bind h (fun h' -> aux (h' :: acc) t)
+    | [] -> Lwt.return (List.rev acc)
+  in
+    aux [] xs
+
+let join_results xs =
+  let rec aux acc = function
+    | (Ok x) :: t -> aux (x :: acc) t
+    | (Error _ as e) :: _ -> e
+    | [] -> Ok acc
+  in
+    aux [] xs
+
+let bind_promise_result f = function
+  | Ok x -> f x
+  | Error _ as e -> Lwt.return e
+
+let array_find pred xs =
+  let rec aux i =
+    if i >= Array.length xs
+    then None
+    else
+      let x = xs.(i) in
+        if pred x
+        then Some x
+        else aux (i + 1)
+  in
+    aux 0
+
+let http_get url =
+  let open Js_of_ocaml_lwt in
+  Lwt.bind
+    (XmlHttpRequest.get url)
+    (fun r ->
+       let code = r.XmlHttpRequest.code in
+       let body = r.XmlHttpRequest.content in
+         if code == 0 || code == 200 then Lwt.return_ok body
+         else Lwt.return_error body
+    )
+
+let (>|?=) a f = Lwt.map (map_result f) a
+
+
+module Text = struct
+  type t = {
+    url: string;
+    content: string;
+  }
+
+  let load url =
+    http_get url
+    >|?= (fun content -> {url; content})
+end
+
+
 module Layout = struct
   exception BadFinger of string
   exception BadHand of string
@@ -16,12 +78,6 @@ module Layout = struct
   type t = {
     name : string;
     keys : (char, (hand * finger * int)) Hashtbl.t;
-  }
-
-  type serialized_key = {
-    hand: string;
-    finger: string;
-    int: string
   }
 
   let finger_of_string = function
@@ -38,7 +94,6 @@ module Layout = struct
     | "any" -> Ok Any
     | x -> Error ("Bad hand " ^ x)
 
-  (* TODO parse JSON object instead *)
   let parse name json :t =
     let tbl = Hashtbl.create 64 in
     let open Js_of_ocaml in
@@ -94,55 +149,6 @@ let analyze_text (l:Layout.t) (text:string) :(float stats) =
         }
       )
 
-let http_get url =
-  let open Js_of_ocaml_lwt in
-  Lwt.bind
-    (XmlHttpRequest.get url)
-    (fun r ->
-       let code = r.XmlHttpRequest.code in
-       let body = r.XmlHttpRequest.content in
-         if code == 0 || code == 200 then Lwt.return_ok body
-         else Lwt.return_error body
-    )
-
-let map_result f = function
-  | Ok a -> Ok (f a)
-  | Error _ as b -> b
-
-let join_promises xs =
-  let rec aux acc = function
-    | h :: t ->
-       Lwt.bind h (fun h' -> aux (h' :: acc) t)
-    | [] -> Lwt.return (List.rev acc)
-  in
-    aux [] xs
-
-let join_results xs =
-  let rec aux acc = function
-    | (Ok x) :: t -> aux (x :: acc) t
-    | (Error _ as e) :: _ -> e
-    | [] -> Ok acc
-  in
-    aux [] xs
-
-let (>|?=) a f = Lwt.map (map_result f) a
-
-let bind_promise_result f = function
-  | Ok x -> f x
-  | Error _ as e -> Lwt.return e
-
-let array_find pred xs =
-  let rec aux i =
-    if i >= Array.length xs
-    then None
-    else
-      let x = xs.(i) in
-        if pred x
-        then Some x
-        else aux (i + 1)
-  in
-    aux 0
-
 module Highcharts = struct
   open Js_of_ocaml
   open Js_of_ocaml.Js.Unsafe
@@ -152,7 +158,7 @@ module Highcharts = struct
       (global##.Highcharts##.chart)
       [| inject (Js.string dom_id); props |]
 
-  let set_x_axis chart (categories:string array) =
+  let set_x_categories chart (categories:string array) =
     Js.array_get
       (chart##.xAxis)
       0
@@ -175,6 +181,7 @@ module Highcharts = struct
       )
 end
 
+
 let () =
   print_endline "OCaml saying hi!";
   let text_urls = ["texts/one.txt";
@@ -184,7 +191,7 @@ let () =
                      "qwerty", "layouts/qwerty.json";
                      "colemak", "layouts/colemak.json";
                     ] in
-  List.map http_get text_urls
+  List.map Text.load text_urls
   |> join_promises
   >|= join_results
   >>= bind_promise_result (fun texts ->
@@ -200,25 +207,61 @@ let () =
     )
   >|= (function
       | Ok (texts, layouts) ->
+         let open Js_of_ocaml.Js.Unsafe in
          let same_finger_chart = Highcharts.create
                                    "fingerChart"
-                                   (Js_of_ocaml.Js.Unsafe.obj [| |]) in
-         let _ = Highcharts.set_x_axis
+                                   (obj
+                                      [|
+                                        "chart", obj [|
+                                            "type", inject "column"
+                                          |];
+                                        "title", obj [|
+                                            "text", inject ""
+                                          |];
+                                        "subtitle", obj[|
+                                            "text", inject ""
+                                          |];
+                                        "xAxis", obj [|
+                                            "categories", inject [];
+                                            "crosshair", inject true;
+                                          |];
+                                        "yAxis", obj [|
+                                            "min", inject 0;
+                                            "title", obj [|
+                                                "text", inject "Same Finger Count %";
+                                              |]
+                                          |];
+                                        "tooltip", obj [||];
+                                        "plotOptions", obj [|
+                                            "column", obj [|
+                                                "pointPadding", inject 0.2;
+                                                "borderWidth", inject 0;
+                                              |];
+                                          |];
+                                        "series", layouts
+                                                  |> List.map (fun (l:Layout.t) -> obj [|
+                                                      "name", inject l.name;
+                                                      "data", inject [| 0 |];
+                                                    |])
+                                                  |> Array.of_list
+                                                  |> inject;
+                                      |]) in
+         let _ = Highcharts.set_x_categories
                    same_finger_chart
-                   [| "ahmet"; "emre" |] in
-         List.iteri (fun num text -> 
-             print_string text;
+                   (Array.of_list (List.map (fun (x:Text.t) -> x.url) texts)) in
+         List.iteri (fun num (text:Text.t) -> 
+             print_string text.url;
              let elem = Js_of_ocaml_tyxml.Tyxml_js.Html.div [
                  (Js_of_ocaml_tyxml.Tyxml_js.Html.txt (string_of_int num));
-                 (Js_of_ocaml_tyxml.Tyxml_js.Html.txt text)
+                 (Js_of_ocaml_tyxml.Tyxml_js.Html.txt text.url)
                ] in
                Js_of_ocaml.Dom.appendChild
                  (Js_of_ocaml.Dom_html.getElementById "texts")
                  (Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_element elem)
            ) texts;
          List.iter (fun layout ->
-             List.iter (fun text ->
-                 let _stats = analyze_text layout text in
+             List.iter (fun (text:Text.t) ->
+                 let _stats = analyze_text layout text.url in
                    ()
                )
                texts
