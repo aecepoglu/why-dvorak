@@ -89,46 +89,8 @@
 			"texts/dvorak.txt",
 		];
 
-		function showFile(path, $container) {
-			//$container.addClass("loading");
-
-			return getFile(path).then(t => {
-				//$container.find(".contents").html(t);
-				//$container.removeClass("loading");
-
-				return t;
-			});
-		}
-
-		function analyzeFile(path) {
-			showFile(path).then(t => {
-				let x = analyze(t);
-				console.log(x);
-			});
-		}
-
-		function findBest(key, arr) {
-			var bestIndex = -1;
-			var bestVal = Number.MAX_SAFE_INTEGER;
-			arr.forEach((it, i) => {
-				let val = it.stats[key].reduce((acc, x) => (acc+x));
-				if (val < bestVal) {
-					bestIndex = i;
-					bestVal = val;
-				}
-			});
-
-			return arr[bestIndex].layout;
-		}
-
 		$(function() {
-			let $texts = $("#texts");
-			let promises = TEXTS.map((path, i) => {
-				let $container = $($texts.children()[i]);
-				return showFile(path, $container);
-			});
-
-			Promise.all(promises).then(texts => {
+			Promise.all([]).then(texts => {
 				return texts.map(t => {
 					return analyze(t);
 				});
@@ -177,18 +139,7 @@
 					//sameHandChart.series
 					//	.find(x => x.name == layout)
 					//	.setData(stats.sameHandCount);
-					//distanceChart.series
-					//	.find(x => x.name == layout)
-					//	.setData(stats.distanceTravelled);
 				});
-
-				let bestDistanceLayout = findBest("distanceTravelled", results);
-				let bestHandLayout = findBest("sameHandCount", results);
-				let bestFingerLayout = findBest("sameFingerCount", results);
-
-				$("#bestDistance").html(bestDistanceLayout);
-				$("#bestHand").html(bestHandLayout);
-				$("#bestFinger").html(bestFingerLayout);
 			}).catch(err => {
 				console.log("error", err);
 			});

@@ -3,11 +3,25 @@ open Lwt.Infix
 type hand = Left | Right | Any
 type finger = Thumb | Index | Middle | Ring | Pinky
 
-type 'a stats = {
-  same_hand   : 'a;
-  same_finger : 'a;
-  distance    : 'a;
-}
+module Stats = struct
+  type 'a t = {
+    same_hand   : 'a;
+    same_finger : 'a;
+    distance    : 'a;
+  }
+
+  let op f a b = {
+    same_hand   = f a.same_hand b.same_hand;
+    same_finger = f a.same_finger b.same_finger;
+    distance    = f a.distance b.distance;
+  }
+
+  let map f a = {
+    same_hand   = f a.same_hand;
+    same_finger = f a.same_finger;
+    distance    = f a.distance;
+  }
+end
 
 let map_result f = function
   | Ok a -> Ok (f a)
@@ -118,37 +132,6 @@ module Layout = struct
       }
 end
 
-let analyze_text (l:Layout.t) (text:string) :(float stats) =
-  let len = String.length text in
-  let rec aux s prev_hand prev_finger i =
-    if i < len
-    then
-      let c = text.[i] in
-        match Hashtbl.find_opt l.keys c with
-        | Some(hand, finger, dist) ->
-           let s' = {
-             same_hand = (if hand = prev_hand
-                          then s.same_hand + 1
-                          else s.same_hand);
-             same_finger = (if (hand, finger) = (prev_hand, prev_finger)
-                            then s.same_finger + 1
-                            else s.same_finger);
-             distance = s.distance + dist;
-           } in
-             aux s' hand finger (i + 1)
-        | None ->
-           aux s prev_hand prev_finger (i + 1)
-    else s
-  in
-    aux {same_hand=0; same_finger=0; distance=0} Left Thumb 0
-    |> (fun x -> 
-        let len_f = float_of_int len in {
-          same_hand = (float_of_int x.same_hand) /. len_f;
-          same_finger = (float_of_int x.same_finger) /. len_f;
-          distance = (float_of_int x.distance) /. len_f;
-        }
-      )
-
 module Highcharts = struct
   open Js_of_ocaml
   open Js_of_ocaml.Js.Unsafe
@@ -172,7 +155,7 @@ module Highcharts = struct
         | None -> ()
       )
 
-  let set_data chart layout_name stats =
+  let set_data chart layout_name (stats:'a Stats.t) =
     Js.to_array (chart##.series)
     |> array_find (fun x -> x##.name = layout_name)
     |> (function
@@ -180,6 +163,45 @@ module Highcharts = struct
         | None -> ()
       )
 end
+
+let analyze_text (l:Layout.t) (text:string) :(float Stats.t) =
+  let open Stats in
+  let len = String.length text in
+  let rec aux s prev_hand prev_finger i =
+    if i < len
+    then
+      let c = text.[i] in
+        match Hashtbl.find_opt l.keys c with
+        | Some(hand, finger, dist) ->
+           let s' = {
+             same_hand = (if hand = prev_hand
+                          then s.same_hand + 1
+                          else s.same_hand);
+             same_finger = (if (hand, finger) = (prev_hand, prev_finger)
+                            then s.same_finger + 1
+                            else s.same_finger);
+             distance = s.distance + dist;
+           } in
+             aux s' hand finger (i + 1)
+        | None ->
+           aux s prev_hand prev_finger (i + 1)
+    else s
+  in
+    aux {same_hand=0; same_finger=0; distance=0} Left Thumb 0
+    |> Stats.map (fun k -> (float_of_int k) /. (float_of_int len))
+
+let find_best cmp =
+  let rec aux best = function
+    | h :: t when cmp h best < 0 -> aux h t
+    | _ :: t -> aux best t
+    | [] -> best
+  in
+    (function
+      | [] -> None
+      | h :: t -> Some (aux h t)
+    )
+
+let sum_float_list = List.fold_left (+.) 0.0
 
 
 let () =
@@ -281,33 +303,34 @@ let () =
                  (Js_of_ocaml.Dom_html.getElementById "texts")
                  (Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_element elem)
            ) texts;
-         let _results = List.map
+         let results = List.map
                           (fun (layout:Layout.t) ->
-                             List.fold_right (fun (text:Text.t) acc ->
-                                 let stats = analyze_text layout text.url in
-                                   {
-                                     same_hand = stats.same_hand :: acc.distance;
-                                     same_finger = stats.same_finger :: acc.distance;
-                                     distance = stats.distance :: acc.distance;
-                                   }
+                             List.fold_right
+                               (fun (text:Text.t) acc ->
+                                 Stats.op List.cons (analyze_text layout text.url) acc
                                )
                                texts
                                {same_hand = []; same_finger = []; distance = []}
+                             |> (fun x -> layout.name, x)
                           )
                           layouts
          in
-           (*
+         let (best_stats:string Stats.t) =
+           results
+           |> List.fold_left (fun acc (name, stats) ->
+               Stats.op (fun a b -> (name, sum_float_list a) :: b) stats acc
+             )
+               {same_hand = []; same_finger = []; distance = []}
+           |> Stats.map (find_best (fun (_, a) (_, b) -> Float.compare a b))
+           |> Stats.map (function
+               | Some(name, _) -> name
+               | None -> "unknown"
+             )
+         in
            let open Js_of_ocaml.Dom_html in
-           let js_string_of_float x = 
-             Js_of_ocaml.Js.string (string_of_float x)
-           in
-             (getElementById "distanceChart")##.innerHTML :=
-               js_string_of_float distance;
-             (getElementById "fingerChart")##.innerHTML :=
-               js_string_of_float same_finger;
-             (getElementById "handChart")##.innerHTML :=
-               js_string_of_float same_hand;
-           *)
+             (getElementById "bestDistance")##.innerHTML := Js_of_ocaml.Js.string best_stats.distance;
+             (getElementById "bestHand")##.innerHTML := Js_of_ocaml.Js.string best_stats.same_hand;
+             (getElementById "bestFinger")##.innerHTML := Js_of_ocaml.Js.string best_stats.same_finger;
            ()
       | Error e -> print_endline e
     )
