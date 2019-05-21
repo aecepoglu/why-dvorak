@@ -10,6 +10,7 @@ $(BCJS): ocaml/code.ml
 
 public_assets: public/* dest
 	cp -r public/* $(DEST)
+	firefox localhost:8080
 
 dest:
 	mkdir -p $(DEST)

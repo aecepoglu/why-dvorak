@@ -83,57 +83,11 @@
 		var $textContainer;
 		var $textarea;
 
-		const CHART_PROPS = {
-			chart: {
-				type: "column"
-			},
-			title: {
-				text: ""
-			},
-			subtitle: {
-				text: ""
-			},
-			xAxis: {
-				categories: [],
-				crosshair: true
-			},
-			yAxis: {
-				min: 0,
-			},
-			tooltip: {},
-			plotOptions: {
-				column: {
-					pointPadding: 0.2,
-					borderWidth: 0
-				}
-			},
-			series: layouts.map(l => {
-				return {
-					name: l.name,
-					data: [0]
-				};
-			})
-		};
 		const TEXTS = [
 			"texts/common-words.txt",
 			"texts/sherlock.txt",
 			"texts/dvorak.txt",
 		];
-
-		var sameHandChart = Highcharts.chart('handChart', $.extend(true, {
-			yAxis: {
-				title: {
-					text: "Same Hand Count %"
-				}
-			},
-		}, CHART_PROPS));
-		var distanceChart = Highcharts.chart('distanceChart', $.extend(true, {
-			yAxis: {
-				title: {
-					text: "Distance Travelled %"
-				}
-			},
-		}, CHART_PROPS));
 
 		function showFile(path, $container) {
 			//$container.addClass("loading");
@@ -173,10 +127,6 @@
 				let $container = $($texts.children()[i]);
 				return showFile(path, $container);
 			});
-
-			let inputNames = TEXTS.map(t => t.split("/").pop());
-			sameHandChart.xAxis[0].update({categories: inputNames});
-			distanceChart.xAxis[0].update({categories: inputNames});
 
 			Promise.all(promises).then(texts => {
 				return texts.map(t => {
@@ -224,12 +174,12 @@
 				console.log(results);
 
 				results.forEach(({layout, stats}) => {
-					sameHandChart.series
-						.find(x => x.name == layout)
-						.setData(stats.sameHandCount);
-					distanceChart.series
-						.find(x => x.name == layout)
-						.setData(stats.distanceTravelled);
+					//sameHandChart.series
+					//	.find(x => x.name == layout)
+					//	.setData(stats.sameHandCount);
+					//distanceChart.series
+					//	.find(x => x.name == layout)
+					//	.setData(stats.distanceTravelled);
 				});
 
 				let bestDistanceLayout = findBest("distanceTravelled", results);

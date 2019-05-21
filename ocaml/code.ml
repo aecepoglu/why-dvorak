@@ -183,7 +183,7 @@ end
 
 
 let () =
-  print_endline "OCaml saying hi!";
+  print_endline "OCaml saying hi!!";
   let text_urls = ["texts/one.txt";
                    "texts/two.txt";
                   ] in
@@ -208,47 +208,69 @@ let () =
   >|= (function
       | Ok (texts, layouts) ->
          let open Js_of_ocaml.Js.Unsafe in
-         let same_finger_chart = Highcharts.create
-                                   "fingerChart"
-                                   (obj
-                                      [|
-                                        "chart", obj [|
-                                            "type", inject "column"
-                                          |];
-                                        "title", obj [|
-                                            "text", inject ""
-                                          |];
-                                        "subtitle", obj[|
-                                            "text", inject ""
-                                          |];
-                                        "xAxis", obj [|
-                                            "categories", inject [];
-                                            "crosshair", inject true;
-                                          |];
-                                        "yAxis", obj [|
-                                            "min", inject 0;
-                                            "title", obj [|
-                                                "text", inject "Same Finger Count %";
-                                              |]
-                                          |];
-                                        "tooltip", obj [||];
-                                        "plotOptions", obj [|
-                                            "column", obj [|
-                                                "pointPadding", inject 0.2;
-                                                "borderWidth", inject 0;
-                                              |];
-                                          |];
-                                        "series", layouts
-                                                  |> List.map (fun (l:Layout.t) -> obj [|
-                                                      "name", inject l.name;
-                                                      "data", inject [| 0 |];
-                                                    |])
-                                                  |> Array.of_list
-                                                  |> inject;
-                                      |]) in
-         let _ = Highcharts.set_x_categories
-                   same_finger_chart
-                   (Array.of_list (List.map (fun (x:Text.t) -> x.url) texts)) in
+         let (
+           same_finger_chart,
+           same_hand_chart,
+           distance_chart
+         ) = [
+           "fingerChart", "Same Finger Count %";
+           "handChart", "Same Hand Count %";
+           "distanceChart", "Distance Travelled"
+         ] |> List.map (fun (dom_id, title) ->
+             Highcharts.create
+               dom_id
+               (obj [|
+                   "chart", obj [|
+                       "type", inject "column"
+                     |];
+                   "title", obj [|
+                       "text", inject ""
+                     |];
+                   "subtitle", obj[|
+                       "text", inject ""
+                     |];
+                   "xAxis", obj [|
+                       "categories", inject [];
+                       "crosshair", inject true;
+                     |];
+                   "yAxis", obj [|
+                       "min", inject 0;
+                       "title", obj [|
+                           "text", inject title;
+                         |]
+                     |];
+                   "tooltip", obj [||];
+                   "plotOptions", obj [|
+                       "column", obj [|
+                           "pointPadding", inject 0.2;
+                           "borderWidth", inject 0;
+                         |];
+                     |];
+                   "series", layouts
+                             |> List.map (fun (l:Layout.t) -> obj [|
+                                 "name", inject l.name;
+                                 "data", inject [| 0 |];
+                               |])
+                             |> Array.of_list
+                             |> inject;
+                 |])
+             )
+           |> (function
+               | [a; b; c] -> a, b, c
+               | _ ->
+                  let x = Highcharts.create "abc" (obj [||]) in
+                    (x, x, x)
+             )
+         in
+         let _ = (
+           let text_names = (Array.of_list (List.map (fun (x:Text.t) -> x.url) texts)) in
+             List.iter
+               (fun c -> Highcharts.set_x_categories c text_names)
+               [ same_finger_chart;
+                 same_hand_chart;
+                 distance_chart;
+               ]
+         ) in
          List.iteri (fun num (text:Text.t) -> 
              print_string text.url;
              let elem = Js_of_ocaml_tyxml.Tyxml_js.Html.div [
@@ -259,14 +281,34 @@ let () =
                  (Js_of_ocaml.Dom_html.getElementById "texts")
                  (Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_element elem)
            ) texts;
-         List.iter (fun layout ->
-             List.iter (fun (text:Text.t) ->
-                 let _stats = analyze_text layout text.url in
-                   ()
-               )
-               texts
-           )
-           layouts
+         let _results = List.map
+                          (fun (layout:Layout.t) ->
+                             List.fold_right (fun (text:Text.t) acc ->
+                                 let stats = analyze_text layout text.url in
+                                   {
+                                     same_hand = stats.same_hand :: acc.distance;
+                                     same_finger = stats.same_finger :: acc.distance;
+                                     distance = stats.distance :: acc.distance;
+                                   }
+                               )
+                               texts
+                               {same_hand = []; same_finger = []; distance = []}
+                          )
+                          layouts
+         in
+           (*
+           let open Js_of_ocaml.Dom_html in
+           let js_string_of_float x = 
+             Js_of_ocaml.Js.string (string_of_float x)
+           in
+             (getElementById "distanceChart")##.innerHTML :=
+               js_string_of_float distance;
+             (getElementById "fingerChart")##.innerHTML :=
+               js_string_of_float same_finger;
+             (getElementById "handChart")##.innerHTML :=
+               js_string_of_float same_hand;
+           *)
+           ()
       | Error e -> print_endline e
     )
   |> Lwt.ignore_result
