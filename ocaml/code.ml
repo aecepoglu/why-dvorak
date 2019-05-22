@@ -155,11 +155,11 @@ module Highcharts = struct
         | None -> ()
       )
 
-  let set_data chart layout_name (stats:'a Stats.t) =
+  let set_data chart layout_name floats =
     Js.to_array (chart##.series)
     |> array_find (fun x -> x##.name = layout_name)
     |> (function
-        | Some x -> fun_call (x##.setData) stats.same_finger
+        | Some x -> fun_call (x##.setData) [| inject floats |]
         | None -> ()
       )
 end
@@ -284,7 +284,7 @@ let () =
                     (x, x, x)
              )
          in
-         let _ = (
+         let _ = ( (*can't I just create the highcharts with this data *)
            let text_names = (Array.of_list (List.map (fun (x:Text.t) -> x.url) texts)) in
              List.iter
                (fun c -> Highcharts.set_x_categories c text_names)
@@ -293,27 +293,17 @@ let () =
                  distance_chart;
                ]
          ) in
-         List.iteri (fun num (text:Text.t) -> 
-             print_string text.url;
-             let elem = Js_of_ocaml_tyxml.Tyxml_js.Html.div [
-                 (Js_of_ocaml_tyxml.Tyxml_js.Html.txt (string_of_int num));
-                 (Js_of_ocaml_tyxml.Tyxml_js.Html.txt text.url)
-               ] in
-               Js_of_ocaml.Dom.appendChild
-                 (Js_of_ocaml.Dom_html.getElementById "texts")
-                 (Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_element elem)
-           ) texts;
          let results = List.map
-                          (fun (layout:Layout.t) ->
-                             List.fold_right
-                               (fun (text:Text.t) acc ->
+                         (fun (layout:Layout.t) ->
+                            List.fold_right
+                              (fun (text:Text.t) acc ->
                                  Stats.op List.cons (analyze_text layout text.url) acc
-                               )
-                               texts
-                               {same_hand = []; same_finger = []; distance = []}
-                             |> (fun x -> layout.name, x)
-                          )
-                          layouts
+                              )
+                              texts
+                              {same_hand = []; same_finger = []; distance = []}
+                            |> (fun x -> layout.name, x)
+                         )
+                         layouts
          in
          let (best_stats:string Stats.t) =
            results
@@ -327,10 +317,36 @@ let () =
                | None -> "unknown"
              )
          in
-           let open Js_of_ocaml.Dom_html in
-             (getElementById "bestDistance")##.innerHTML := Js_of_ocaml.Js.string best_stats.distance;
-             (getElementById "bestHand")##.innerHTML := Js_of_ocaml.Js.string best_stats.same_hand;
-             (getElementById "bestFinger")##.innerHTML := Js_of_ocaml.Js.string best_stats.same_finger;
+         let open Js_of_ocaml.Dom_html in
+           Printf.printf "num results %d\n" (List.length results);
+
+           (getElementById "bestDistance")##.innerHTML := Js_of_ocaml.Js.string best_stats.distance;
+           (getElementById "bestHand")##.innerHTML := Js_of_ocaml.Js.string best_stats.same_hand;
+           (getElementById "bestFinger")##.innerHTML := Js_of_ocaml.Js.string best_stats.same_finger;
+
+           List.iter (fun (layout_name, (stats:float list Stats.t)) ->
+                Highcharts.set_data distance_chart layout_name stats.distance
+             )
+             results;
+           List.iter (fun (layout_name, (stats:float list Stats.t)) ->
+                Highcharts.set_data same_hand_chart layout_name stats.same_hand
+             )
+             results;
+           List.iter (fun (layout_name, (stats:float list Stats.t)) ->
+                Highcharts.set_data same_finger_chart layout_name stats.same_finger
+             )
+             results;
+
+           List.iteri (fun num (text:Text.t) -> 
+               print_string text.url;
+               let elem = Js_of_ocaml_tyxml.Tyxml_js.Html.div [
+                   (Js_of_ocaml_tyxml.Tyxml_js.Html.txt (string_of_int num));
+                   (Js_of_ocaml_tyxml.Tyxml_js.Html.txt text.url)
+                 ] in
+                 Js_of_ocaml.Dom.appendChild
+                   (Js_of_ocaml.Dom_html.getElementById "texts")
+                   (Js_of_ocaml_tyxml.Tyxml_js.To_dom.of_element elem)
+             ) texts;
            ()
       | Error e -> print_endline e
     )

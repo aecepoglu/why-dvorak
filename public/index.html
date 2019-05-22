@@ -3,13 +3,7 @@
 <head>
 	<title>Why Dvorak?</title>
 
-	<script type="text/javascript" src="code.js"></script>
-	<script type="text/javascript" src="layouts/qwerty.js"></script>
-	<script type="text/javascript" src="layouts/dvorak.js"></script>
-	<script type="text/javascript" src="layouts/colemak.js"></script>
-	<script type="text/javascript" src="layouts/tr-f.js"></script>
 	<script type="text/javascript" src="code.bc.js"></script>
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.3.1/jquery.slim.min.js"></script>
 	<script src="https://code.highcharts.com/highcharts.js"></script>
 
 	<link rel="stylesheet" type="text/css" href="css/loading-anim.css"></script>
@@ -77,26 +71,8 @@
 	</div>
 
 	<script type="text/javascript">
-		layouts = layouts.filter(l => l.isEnabled);
-		$("#layouts").html(layouts.map(x => x.name).join(", "));
-
-		var $textContainer;
-		var $textarea;
-
-		const TEXTS = [
-			"texts/common-words.txt",
-			"texts/sherlock.txt",
-			"texts/dvorak.txt",
-		];
-
-		$(function() {
-			Promise.all([]).then(texts => {
-				return texts.map(t => {
-					return analyze(t);
-				});
-			}).then(listsOfResults => {
-				/* listsOfResults: [
-					[{
+		/* listsOfResults: [
+		[{
 						layout: "dvorak",
 						stats: {
 							sameFingerCount: number,
@@ -112,37 +88,27 @@
 						}
 					}]
 				]
-				*/
+		 */
+		let listOfResults = [];
+		let layouts = [];
 
-				let results = listsOfResults.reduce((acc, statsOfLayouts) => {
-					statsOfLayouts.forEach((r, i) => {
-						acc[i].stats.sameFingerCount.push(r.stats.sameFingerCount);
-						acc[i].stats.sameHandCount.push(r.stats.sameFingerCount);
-						acc[i].stats.distanceTravelled.push(r.stats.distanceTravelled);
-					});
-
-					return acc;
-				}, layouts.map(l => {
-					return {
-						layout: l.name,
-						stats: {
-							sameFingerCount: [],
-							sameHandCount: [],
-							distanceTravelled: []
-						}
-					};
-				}));
-
-				console.log(results);
-
-				results.forEach(({layout, stats}) => {
-					//sameHandChart.series
-					//	.find(x => x.name == layout)
-					//	.setData(stats.sameHandCount);
-				});
-			}).catch(err => {
-				console.log("error", err);
+		let results = listsOfResults.reduce((acc, statsOfLayouts) => {
+			statsOfLayouts.forEach((r, i) => {
+				acc[i].stats.sameFingerCount.push(r.stats.sameFingerCount);
+				acc[i].stats.sameHandCount.push(r.stats.sameFingerCount);
+				acc[i].stats.distanceTravelled.push(r.stats.distanceTravelled);
 			});
-		});
+
+			return acc;
+		}, layouts.map(l => {
+			return {
+				layout: l.name,
+				stats: {
+					sameFingerCount: [],
+					sameHandCount: [],
+					distanceTravelled: []
+				}
+			};
+		}));
 	</script>
 </body>
