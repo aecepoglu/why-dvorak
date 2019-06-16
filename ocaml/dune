@@ -1,5 +1,5 @@
 (executable
 	(name code)
 	(libraries js_of_ocaml-lwt js_of_ocaml-tyxml)
-	(preprocess (pps js_of_ocaml-ppx lwt_ppx))
+	(preprocess (pps js_of_ocaml-ppx tyxml-ppx lwt_ppx))
 )
