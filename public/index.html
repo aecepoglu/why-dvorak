@@ -4,49 +4,18 @@
 	<title>Why Dvorak?</title>
 
 	<script type="text/javascript" src="code.bc.js"></script>
-	<script src="https://code.highcharts.com/highcharts.js"></script>
+<style>
+rect {
+	stroke: black;
+}
+</style>
 
-	<link rel="stylesheet" type="text/css" href="css/loading-anim.css"></script>
-	<link rel="stylesheet" type="text/css" href="css/style.css"></script>
 </head>
 
 <body>
-	<h1>Which Is The Best Keyboard Layout?</h1>
-	
-	Out of <span id="layouts">most popular keyboard layouts</span>, which is the best?
+	<div id="container"></div>
 
-	<div id="charts">
-		<div id="fingerChart" class="chart"></div>
-		<div id="handChart" class="chart"></div>
-		<div id="distanceChart" class="chart"></div>
-	</div>
-
-	<div id="texts">
-	</div>
-
-	<!--
-	<div id="texts">
-		<div id="text-0" class="with-loading-anim">
-			<div class="loading-anim hidden">
-				<img src="loading.gif"></img>
-			</div>
-			<div class="contents" readonly="true"></div>
-		</div>
-	</div>
-	-->
-
-	<hr/>
-
-	<h2>Conclusion</h2>
-	<ul>
-		<li>Layout with least travel: <span id="bestDistance" class="best">...</span></li>
-		<li>Layout with least same-hand-count: <span id="bestHand" class="best">...</span></li>
-		<li>Layout with least same-finger-count: <span id="bestFinger" class="best">...</span></li>
-	</ul>
-
-	<p><span id="bestLayout"></p>
-
-	<hr/>
+	<h3>About</h3>
 
 	<div style="font-size: 0.8em">
 		<h4>Same Finger Count</h4>
@@ -69,46 +38,4 @@
 		No rights reserved. Made by aecepoglu: <script type="text/javascript">document.write("aecepoglu" + "@" + (2>1 ? "fastmail.fm" : "") + "");</script>
 		<a href="https://github.com/aecepoglu/why-dvorak">source code</a>
 	</div>
-
-	<script type="text/javascript">
-		/* listsOfResults: [
-		[{
-						layout: "dvorak",
-						stats: {
-							sameFingerCount: number,
-							sameHandCount: number,
-							distanceTravelled: number
-						}
-					}, {
-						layout: "qwerty",
-						stats: {
-							sameFingerCount: number,
-							sameHandCount: number,
-							distanceTravelled: number
-						}
-					}]
-				]
-		 */
-		let listOfResults = [];
-		let layouts = [];
-
-		let results = listsOfResults.reduce((acc, statsOfLayouts) => {
-			statsOfLayouts.forEach((r, i) => {
-				acc[i].stats.sameFingerCount.push(r.stats.sameFingerCount);
-				acc[i].stats.sameHandCount.push(r.stats.sameFingerCount);
-				acc[i].stats.distanceTravelled.push(r.stats.distanceTravelled);
-			});
-
-			return acc;
-		}, layouts.map(l => {
-			return {
-				layout: l.name,
-				stats: {
-					sameFingerCount: [],
-					sameHandCount: [],
-					distanceTravelled: []
-				}
-			};
-		}));
-	</script>
 </body>
