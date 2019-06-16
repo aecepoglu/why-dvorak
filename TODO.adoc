@@ -1,0 +1,16 @@
+= Keyboard
+
+Can play animations of a keyboard typing a text
+
+- [x] draw rectangles with SVG
+- [x] use PPX to interface with SVG
+- [x] change rectangle fill color upon button press
+- [ ] parse keyboard layout from text
+- [x] render keyboard in SVG
+- [ ] change state of a key on button press
+- [ ] change states of buttons of keyboard in order
+- [ ] type a text on the keyboard
+- [ ] show multiple keyboards
+- [ ] animate multiple keyboards typing a text
+
+= TextPlayer
