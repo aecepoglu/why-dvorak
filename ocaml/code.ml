@@ -1,12 +1,16 @@
 type kbd_key = S of char (* single key button *)
              | Z of int (* wide button *)
+             | N
 
 let dvorak_kbd_data = [
-  [ S('`'); S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('['); S(']');  Z(4) ];
-  [ Z(3);   S('\''); S(','); S('.'); S('P'); S('Y'); S('F'); S('G'); S('C'); S('R'); S('L'); S('/'); S('=');  Z(3) ];
-  [ Z(4);   S('A');  S('O'); S('E'); S('U'); S('I'); S('D'); S('H'); S('T'); S('N'); S('S'); S('-'); S('\\'); Z(2) ];
-  [ Z(3);   S('<');  S(';'); S('Q'); S('J'); S('K'); S('X'); S('B'); S('M'); S('W'); S('V'); S('Z');          Z(5) ];
+  [ N;      S('`');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('['); S(']');  Z(1) ];
+  [ Z(2);            S('\''); S(','); S('.'); S('P'); S('Y'); S('F'); S('G'); S('C'); S('R'); S('L'); S('/'); S('=');  Z(1) ];
+  [ Z(2);            S('A');  S('O'); S('E'); S('U'); S('I'); S('D'); S('H'); S('T'); S('N'); S('S'); S('-'); S('\\'); Z(1) ];
+  [ Z(1);   S('<');  S(';');  S('Q'); S('J'); S('K'); S('X'); S('B'); S('M'); S('W'); S('V'); S('Z');                  Z(3) ];
 ]
+
+type hand = Left | Right
+type finger = Pinky | Ring | Middle | Index | Thumb
 
 let sample_text = "A wet brown dog came running and did not bark, lifting a wet feather of a tail. The man followed in a wet black oilskin jacket, like a chauffeur, and face flushed a little. She felt him recoil in his quick walk, when he saw her. She stood up in the handbreadth of dryness under the rustic porch. He saluted without speaking, coming slowly near. She began to withdraw."
 ;;
@@ -64,30 +68,36 @@ let keyboard layout model =
   let key_rects = layout
                   |> List.mapi (fun row cols ->
                       (List.fold_left (fun (col, rects) key ->
-                           let pos_x = col * 20 in
-                           let pos_y = row * 40 in
-                           let label, w = match key with
-                             | S(c) -> String.make 1 c, 2
-                             | Z(w) -> "", w
-                           in
-                           let fill = match key, model.state with
-                             | Z(_), _ -> "grey"
-                             | S(c), Playing i when c = (Char.uppercase_ascii model.passage.[i]) -> "yellow"
-                             | S(_), _ -> "white"
-                           in
-                           let rect = svg_elt "rect" [] ~a:[int_attr "x" pos_x;
-                                                            int_attr "y" pos_y;
-                                                            int_attr "width" (w * 20);
-                                                            int_attr "height" 40;
-                                                            attr  "fill" fill;
-                                                           ]
-                           in
-                           let text' = svg_elt "text" [text label] ~a:[int_attr "x" (pos_x + 5);
-                                                                       int_attr "y" (pos_y + 15);
-                                                                      ]
-                           in
-                             (* the order of elements determine which shows on top *)
-                             (col + w), (text' :: rect :: rects)
+                           match key with
+                           | N -> col + 1, rects
+                           | Z w -> (col + w), (svg_elt "rect" [] ~a:[int_attr "x" (col * 40);
+                                                                      int_attr "y" (row * 40);
+                                                                      int_attr "width" (w * 40);
+                                                                      int_attr "height" 40;
+                                                                      attr  "fill" "grey";
+                                                                     ]
+                                               ) :: rects
+                           | S c ->
+                              let fill = (match model.state with
+                                  | Playing i when c = (Char.uppercase_ascii model.passage.[i]) -> "yellow"
+                                  | _ -> "white"
+                                ) in
+                              let pos_x = col * 40 in
+                              let pos_y = row * 40 in
+                              let rect = svg_elt "rect" [] ~a:[int_attr "x" pos_x;
+                                                               int_attr "y" pos_y;
+                                                               int_attr "width" 40;
+                                                               int_attr "height" 40;
+                                                               attr  "fill" fill;
+                                                              ]
+                              in
+                              let text' = svg_elt "text" [text (String.make 1 c)]
+                                            ~a:[int_attr "x" (pos_x + 5);
+                                                int_attr "y" (pos_y + 15);
+                                               ]
+                              in
+                                (* the order of elements determine which shows on top *)
+                                (col + 1), (text' :: rect :: rects)
                          ) (0, []) cols
                        |> snd
                        |> List.rev
