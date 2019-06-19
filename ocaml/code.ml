@@ -1,17 +1,3 @@
-type kbd_key = S of char (* single key button *)
-             | Z of int (* wide button *)
-             | N
-
-let dvorak_kbd_data = [
-  [ N;      S('`');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('['); S(']');  Z(1) ];
-  [ Z(2);            S('\''); S(','); S('.'); S('P'); S('Y'); S('F'); S('G'); S('C'); S('R'); S('L'); S('/'); S('=');  Z(1) ];
-  [ Z(2);            S('A');  S('O'); S('E'); S('U'); S('I'); S('D'); S('H'); S('T'); S('N'); S('S'); S('-'); S('\\'); Z(1) ];
-  [ Z(1);   S('<');  S(';');  S('Q'); S('J'); S('K'); S('X'); S('B'); S('M'); S('W'); S('V'); S('Z');                  Z(3) ];
-]
-
-type hand = Left | Right
-type finger = Pinky | Ring | Middle | Index | Thumb
-
 let sample_text = "A wet brown dog came running and did not bark, lifting a wet feather of a tail. The man followed in a wet black oilskin jacket, like a chauffeur, and face flushed a little. She felt him recoil in his quick walk, when he saw her. She stood up in the handbreadth of dryness under the rustic porch. He saluted without speaking, coming slowly near. She began to withdraw."
 ;;
 
@@ -28,58 +14,76 @@ let string_of_chars chars =
   |> List.map (String.make 1)
   |> String.concat ""
 
+
 (************************)
 
-type text_player_state = Ready
-                       | Playing of int
-                       | Finished
-
 open Vdom
+
+type stats = {
+  same_hand: int;
+  same_finger: int;
+  distance: int;
+}
+
+type text_player_state = Ready
+                       | Playing of (int * stats * Kbdlayout.hand * Kbdlayout.finger)
+                       | Finished of stats
 
 type model = {
   state: text_player_state;
   passage: string;
+  lookup: Kbdlayout.lookup_t;
 }
 
 let update model = function
   | `Start -> {model with state = (match model.state with
-      | Ready -> Playing 0
+      | Ready -> Playing (0, {
+          same_hand = 0;
+          same_finger = 0;
+          distance = 0;
+        }, Left, Thumb)
       | s -> s
     )}
   | `NextChar -> {model with state = (match model.state with
-      | Playing i when (i + 1) < String.length model.passage -> Playing (i + 1)
-      | Playing _ -> Finished
+      | Playing (i, stats, prev_hand, prev_finger) when (i + 1) < String.length model.passage ->
+         (match Hashtbl.find_opt model.lookup (Char.uppercase_ascii model.passage.[i]) with
+          | Some (hand, finger, dist) ->
+             Playing ((i + 1), {
+                 same_hand = stats.same_hand + (if hand = prev_hand then 1 else 0);
+                 same_finger = stats.same_finger + (if finger = prev_finger then 1 else 0);
+                 distance = stats.distance + dist;
+               }, hand, finger)
+          | None ->
+             Playing ((i + 1), {stats with distance = stats.distance + 1}, prev_hand, prev_finger)
+         )
+      | Playing (_, stats, _, _) -> Finished stats
       | s -> s
     )}
   | `Reset -> {model with state = (match model.state with
       | Playing _ -> Ready
-      | Finished -> Ready
+      | Finished _ -> Ready
       | s -> s
     )}
 
 let init = {
   state = Ready;
   passage = sample_text;
+  lookup = Kbdlayout.lookup_of_data Kbdlayout.sample_dvorak_data;
 }
 
 let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
 
 let keyboard layout model =
+  let open Kbdlayout in
   let key_rects = layout
                   |> List.mapi (fun row cols ->
                       (List.fold_left (fun (col, rects) key ->
                            match key with
-                           | N -> col + 1, rects
-                           | Z w -> (col + w), (svg_elt "rect" [] ~a:[int_attr "x" (col * 40);
-                                                                      int_attr "y" (row * 40);
-                                                                      int_attr "width" (w * 40);
-                                                                      int_attr "height" 40;
-                                                                      attr  "fill" "grey";
-                                                                     ]
-                                               ) :: rects
+                           | E -> col + 1, rects
+                           | H (c, _, _)
                            | S c ->
                               let fill = (match model.state with
-                                  | Playing i when c = (Char.uppercase_ascii model.passage.[i]) -> "yellow"
+                                  | Playing (i, _, _, _) when c = (Char.uppercase_ascii model.passage.[i]) -> "yellow"
                                   | _ -> "white"
                                 ) in
                               let pos_x = col * 40 in
@@ -110,20 +114,40 @@ let keyboard layout model =
 let view model =
   let play_button {state; _} = match state with
     | Playing _ -> button "Stop" `Reset
-    | Finished -> button "Reset" `Reset
+    | Finished _ -> button "Reset" `Reset
     | Ready -> button "Play" `Start
   in
-  let scrolling_text {state; passage} =
+  let stats_info {state; _} =
+    match state with
+    | Playing (_, stats, _, _)
+    | Finished stats -> elt "table" ~a:[attr "id" "stats"] [
+        elt "tr" [
+          elt "th" [];
+          elt "th" ~a:[class_ "numerical"] [text "same hand"];
+          elt "th" ~a:[class_ "numerical"] [text "same finger"];
+          elt "th" ~a:[class_ "numerical"] [text "distance"];
+        ];
+        elt "tr" [
+          elt "th" [text "Dvorak"];
+          elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.same_hand)];
+          elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.same_finger)];
+          elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.distance)];
+        ];
+      ]
+    | _ -> elt "span" []
+  in
+  let scrolling_text {state; passage; _} =
     div ~a:[attr "id" "passage"] [
       match state with
-      | Playing i -> text (String.sub passage i (String.length passage - i))
+      | Playing (i, _, _, _) -> text (String.sub passage i (String.length passage - i))
       | _ -> text passage
     ]
   in
     div [
-      (keyboard dvorak_kbd_data model);
+      (keyboard Kbdlayout.sample_dvorak_data model);
       (play_button model);
       (scrolling_text model);
+      (stats_info model);
     ]
 
 let app = simple_app ~init ~view ~update ()
@@ -137,11 +161,11 @@ let () =
                              50
                    in
                      app'
-                  )
+                 )
                |> Vdom_blit.dom
                |> Element.append_child (match Document.get_element_by_id document "container" with
-                                        | Some container -> container
-                                        | None -> Document.body document
-                                       )
+                   | Some container -> container
+                   | None -> Document.body document
+                 )
   in
     Window.set_onload window run
