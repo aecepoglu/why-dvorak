@@ -39,6 +39,12 @@ let sample_dvorak_data:data_t = [
   [ E;       H('A', Left, Pinky);  H('O', Left, Ring); H('E', Left, Middle); H('U', Left, Index); S('I'); S('D'); H('H', Right, Index); H('T', Right, Middle); H('N', Right, Ring); H('S', Right, Pinky); S('-'); S('\\'); ];
   [ S('<');  S(';');  S('Q'); S('J'); S('K'); S('X'); S('B'); S('M'); S('W'); S('V'); S('Z'); E;      E;       ];
 ]
+let sample_qwerty_data:data_t = [
+  [ S('"');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('*'); S('-');  ];
+  [ E;       S('Q'); S('W'); S('E'); S('R'); S('T'); S('Y'); S('U'); S('I'); S('O'); S('P'); S('G'); S('U');  ];
+  [ E;       H('A', Left, Pinky);  H('S', Left, Ring); H('D', Left, Middle); H('F', Left, Index); S('G'); S('H'); H('J', Right, Index); H('K', Right, Middle); H('L', Right, Ring); H('S', Right, Pinky); S('I'); S(';'); ];
+  [ S('<');  S('Z');  S('X'); S('C'); S('V'); S('B'); S('N'); S('M'); S('O'); S('C'); S('.'); E;      E;       ];
+]
 
 let lookup_of_data layout :lookup_t =
   (* TODO assert all rows are equal length *)
@@ -139,3 +145,41 @@ let lookup_of_data layout :lookup_t =
           );
     done;
     map
+
+let view ?(highlit_key=None) layout =
+  let open Vdom in
+  let key_buttons = layout
+                    |> List.mapi (fun row cols ->
+                        (List.fold_left (fun (col, rects) key ->
+                             match key with
+                             | E -> col + 1, rects
+                             | H (c, _, _)
+                             | S c ->
+                                let fill = (match highlit_key with
+                                      Some c' when c = c' -> "yellow"
+                                    | _ -> "white"
+                                  ) in
+                                let pos_x = col * 40 in
+                                let pos_y = row * 40 in
+                                let rect = svg_elt "rect" [] ~a:[int_attr "x" pos_x;
+                                                                 int_attr "y" pos_y;
+                                                                 int_attr "width" 40;
+                                                                 int_attr "height" 40;
+                                                                 attr  "fill" fill;
+                                                                ]
+                                in
+                                let text' = svg_elt "text" [text (String.make 1 c)]
+                                              ~a:[int_attr "x" (pos_x + 5);
+                                                  int_attr "y" (pos_y + 15);
+                                                 ]
+                                in
+                                  (* the order of elements determine which shows on top *)
+                                  (col + 1), (text' :: rect :: rects)
+                           ) (0, []) cols
+                         |> snd
+                         |> List.rev
+                        )
+                      )
+                    |> List.flatten
+  in
+    svg_elt "svg" key_buttons ~a:[int_attr "width" 800; int_attr "height" 300]

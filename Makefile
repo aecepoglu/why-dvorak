@@ -23,3 +23,7 @@ node_modules/.bin/http-server:
 clean:
 	rm -rf $(DEST) node_modules package-lock.json
 	dune clean
+
+switch:
+	@eval $(opam env)
+	@opam switch

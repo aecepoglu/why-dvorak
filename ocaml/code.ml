@@ -19,135 +19,158 @@ let string_of_chars chars =
 
 open Vdom
 
-type stats = {
-  same_hand: int;
-  same_finger: int;
+type 'a stats = {
+  same_hand: 'a;
+  same_finger: 'a;
   distance: int;
 }
 
 type text_player_state = Ready
-                       | Playing of (int * stats * Kbdlayout.hand * Kbdlayout.finger)
-                       | Finished of stats
+                       | Playing of int
+                       | Finished
+
+type typing_analysis = {
+  name: string;
+  layout_data: Kbdlayout.data_t;
+  keyboard: Kbdlayout.lookup_t;
+  stats: int stats;
+  last_hand: Kbdlayout.hand;
+  last_finger: Kbdlayout.finger;
+}
 
 type model = {
   state: text_player_state;
+  analyses: typing_analysis list;
   passage: string;
-  lookup: Kbdlayout.lookup_t;
 }
 
+let update_analysis letter analysis =
+  match Hashtbl.find_opt analysis.keyboard letter with
+  | Some (hand, finger, dist) ->
+     let {stats; last_hand; last_finger; _} = analysis in
+       { analysis with
+         stats = {
+           same_hand = stats.same_hand + (if hand = last_hand then 1 else 0);
+           same_finger = stats.same_finger + (if finger = last_finger then 1 else 0);
+           distance = stats.distance + dist;
+         };
+         last_hand = hand;
+         last_finger = finger;
+       }
+  | None -> analysis
+
 let update model = function
-  | `Start -> {model with state = (match model.state with
-      | Ready -> Playing (0, {
-          same_hand = 0;
-          same_finger = 0;
-          distance = 0;
-        }, Left, Thumb)
-      | s -> s
-    )}
-  | `NextChar -> {model with state = (match model.state with
-      | Playing (i, stats, prev_hand, prev_finger) when (i + 1) < String.length model.passage ->
-         (match Hashtbl.find_opt model.lookup (Char.uppercase_ascii model.passage.[i]) with
-          | Some (hand, finger, dist) ->
-             Playing ((i + 1), {
-                 same_hand = stats.same_hand + (if hand = prev_hand then 1 else 0);
-                 same_finger = stats.same_finger + (if finger = prev_finger then 1 else 0);
-                 distance = stats.distance + dist;
-               }, hand, finger)
-          | None ->
-             Playing ((i + 1), {stats with distance = stats.distance + 1}, prev_hand, prev_finger)
-         )
-      | Playing (_, stats, _, _) -> Finished stats
-      | s -> s
-    )}
+  | `Start -> {model with
+               state = Playing 0;
+               analyses = List.map
+                            (fun analysis -> { analysis with
+                                               stats = {
+                                                 same_hand = 0;
+                                                 same_finger = 0;
+                                                 distance = 0;
+                                               };
+                                               last_hand = Kbdlayout.Left;
+                                               last_finger = Kbdlayout.Thumb;
+                                             })
+                             model.analyses;
+              }
+  | `NextChar -> (match model.state with
+      | Playing i when (i + 1) < String.length model.passage ->
+         let c = Char.uppercase_ascii model.passage.[i] in
+           { model with
+             state = Playing (i + 1);
+             analyses = List.map (update_analysis c) model.analyses;
+           }
+      | Playing _ -> { model with state = Finished }
+      | s -> { model with state = s }
+    )
   | `Reset -> {model with state = (match model.state with
       | Playing _ -> Ready
-      | Finished _ -> Ready
+      | Finished -> Ready
       | s -> s
     )}
 
 let init = {
   state = Ready;
   passage = sample_text;
-  lookup = Kbdlayout.lookup_of_data Kbdlayout.sample_dvorak_data;
+  analyses = [
+    {
+      name = "Dvorak";
+      layout_data = Kbdlayout.sample_dvorak_data;
+      keyboard = Kbdlayout.lookup_of_data Kbdlayout.sample_dvorak_data;
+      stats = {
+        same_hand = 0;
+        same_finger = 0;
+        distance = 0;
+      };
+      last_hand = Kbdlayout.Left;
+      last_finger = Kbdlayout.Thumb;
+    };
+    {
+      name = "Qwerty";
+      layout_data = Kbdlayout.sample_qwerty_data;
+      keyboard = Kbdlayout.lookup_of_data Kbdlayout.sample_qwerty_data;
+      stats = {
+        same_hand = 0;
+        same_finger = 0;
+        distance = 0;
+      };
+      last_hand = Kbdlayout.Left;
+      last_finger = Kbdlayout.Thumb;
+    }
+  ];
 }
 
 let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
 
-let keyboard layout model =
-  let open Kbdlayout in
-  let key_rects = layout
-                  |> List.mapi (fun row cols ->
-                      (List.fold_left (fun (col, rects) key ->
-                           match key with
-                           | E -> col + 1, rects
-                           | H (c, _, _)
-                           | S c ->
-                              let fill = (match model.state with
-                                  | Playing (i, _, _, _) when c = (Char.uppercase_ascii model.passage.[i]) -> "yellow"
-                                  | _ -> "white"
-                                ) in
-                              let pos_x = col * 40 in
-                              let pos_y = row * 40 in
-                              let rect = svg_elt "rect" [] ~a:[int_attr "x" pos_x;
-                                                               int_attr "y" pos_y;
-                                                               int_attr "width" 40;
-                                                               int_attr "height" 40;
-                                                               attr  "fill" fill;
-                                                              ]
-                              in
-                              let text' = svg_elt "text" [text (String.make 1 c)]
-                                            ~a:[int_attr "x" (pos_x + 5);
-                                                int_attr "y" (pos_y + 15);
-                                               ]
-                              in
-                                (* the order of elements determine which shows on top *)
-                                (col + 1), (text' :: rect :: rects)
-                         ) (0, []) cols
-                       |> snd
-                       |> List.rev
-                      )
-                    )
-                  |> List.flatten
-  in
-    svg_elt "svg" key_rects ~a:[int_attr "width" 800; int_attr "height" 300]
 
 let view model =
-  let play_button {state; _} = match state with
+  let play_button state = match state with
     | Playing _ -> button "Stop" `Reset
-    | Finished _ -> button "Reset" `Reset
+    | Finished -> button "Reset" `Reset
     | Ready -> button "Play" `Start
   in
-  let stats_info {state; _} =
-    match state with
-    | Playing (_, stats, _, _)
-    | Finished stats -> elt "table" ~a:[attr "id" "stats"] [
-        elt "tr" [
-          elt "th" [];
-          elt "th" ~a:[class_ "numerical"] [text "same hand"];
-          elt "th" ~a:[class_ "numerical"] [text "same finger"];
-          elt "th" ~a:[class_ "numerical"] [text "distance"];
-        ];
-        elt "tr" [
-          elt "th" [text "Dvorak"];
-          elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.same_hand)];
-          elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.same_finger)];
-          elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.distance)];
-        ];
-      ]
-    | _ -> elt "span" []
-  in
-  let scrolling_text {state; passage; _} =
+  let scrolling_text state passage =
     div ~a:[attr "id" "passage"] [
-      match state with
-      | Playing (i, _, _, _) -> text (String.sub passage i (String.length passage - i))
-      | _ -> text passage
+      let i = (match state with
+          | Playing i -> i
+          | _ -> 0
+        ) in
+        text (String.sub passage i (String.length passage - i))
     ]
   in
+  let view_stats () =
+    elt "table" ~a:[attr "id" "stats"] (
+      elt "tr" [
+        elt "th" [];
+        elt "th" ~a:[class_ "numerical"] [text "same hand"];
+        elt "th" ~a:[class_ "numerical"] [text "same finger"];
+        elt "th" ~a:[class_ "numerical"] [text "distance"];
+      ]
+      :: List.map (fun {name; stats; _} -> 
+          elt "tr" [
+            elt "th" [text name];
+            elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.same_hand)];
+            elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.same_finger)];
+            elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.distance)];
+          ];
+        ) model.analyses
+    ) in
+  let view_analysis passage state analysis =
+    let highlit_key = (match state with
+        | Playing i -> Some (Char.uppercase_ascii passage.[i])
+        | _ -> None
+      ) in
+      Kbdlayout.view ~highlit_key analysis.layout_data 
+  in
     div [
-      (keyboard Kbdlayout.sample_dvorak_data model);
-      (play_button model);
-      (scrolling_text model);
-      (stats_info model);
+      div (List.map (view_analysis model.passage model.state) model.analyses);
+      (play_button model.state);
+      (scrolling_text model.state model.passage);
+      (match model.state with
+       | Playing _ | Finished -> view_stats ()
+       | _ -> elt "span" []
+      );
     ]
 
 let app = simple_app ~init ~view ~update ()
