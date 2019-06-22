@@ -146,8 +146,9 @@ let lookup_of_data layout :lookup_t =
     done;
     map
 
-let view ?(highlit_key=None) layout =
+let view ?(highlit_key=None) label layout =
   let open Vdom in
+  let l = 40 in
   let key_buttons = layout
                     |> List.mapi (fun row cols ->
                         (List.fold_left (fun (col, rects) key ->
@@ -159,12 +160,12 @@ let view ?(highlit_key=None) layout =
                                       Some c' when c = c' -> "yellow"
                                     | _ -> "white"
                                   ) in
-                                let pos_x = col * 40 in
-                                let pos_y = row * 40 in
+                                let pos_x = col * l in
+                                let pos_y = row * l in
                                 let rect = svg_elt "rect" [] ~a:[int_attr "x" pos_x;
                                                                  int_attr "y" pos_y;
-                                                                 int_attr "width" 40;
-                                                                 int_attr "height" 40;
+                                                                 int_attr "width" l;
+                                                                 int_attr "height" l;
                                                                  attr  "fill" fill;
                                                                 ]
                                 in
@@ -182,4 +183,8 @@ let view ?(highlit_key=None) layout =
                       )
                     |> List.flatten
   in
-    svg_elt "svg" key_buttons ~a:[int_attr "width" 800; int_attr "height" 300]
+    div ~a:[class_ "keyboard"] [
+      div ~a:[class_ "title"] [text label];
+      svg_elt "svg" ~a:[int_attr "width" (13 * l); int_attr "height" (4 * l)]
+        key_buttons
+    ]

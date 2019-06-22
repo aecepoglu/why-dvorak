@@ -4,7 +4,7 @@ DEST = docs/
 deploy: $(BCJS) public_assets dest
 	cp -r $(BCJS) $(DEST)
 
-$(BCJS): ocaml/code.ml
+$(BCJS): ocaml/*.ml
 	cd ocaml
 	dune build ocaml/code.bc.js
 

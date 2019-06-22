@@ -25,10 +25,6 @@ type 'a stats = {
   distance: int;
 }
 
-type text_player_state = Ready
-                       | Playing of int
-                       | Finished
-
 type typing_analysis = {
   name: string;
   layout_data: Kbdlayout.data_t;
@@ -37,6 +33,10 @@ type typing_analysis = {
   last_hand: Kbdlayout.hand;
   last_finger: Kbdlayout.finger;
 }
+
+type text_player_state = Ready
+                       | Playing of int
+                       | Finished
 
 type model = {
   state: text_player_state;
@@ -123,7 +123,6 @@ let init = {
 
 let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
 
-
 let view model =
   let play_button state = match state with
     | Playing _ -> button "Stop" `Reset
@@ -161,7 +160,7 @@ let view model =
         | Playing i -> Some (Char.uppercase_ascii passage.[i])
         | _ -> None
       ) in
-      Kbdlayout.view ~highlit_key analysis.layout_data 
+      Kbdlayout.view ~highlit_key analysis.name analysis.layout_data 
   in
     div [
       div (List.map (view_analysis model.passage model.state) model.analyses);

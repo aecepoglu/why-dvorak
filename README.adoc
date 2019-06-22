@@ -1,0 +1,20 @@
+= Why Dvorak
+
+A web page for comparing keyboard layouts using statistics
+
+http://aecepoglu.github.io/why-dvorak[View it *here*]
+
+== Development
+
+_Why-Dvorak_ is written in _OCaml_ and _HTML_. The _OCaml_ code compiles to _JavaScript_.
+https://github.com/LexiFi/ocaml-vdom[_Ocaml-vdom_] is used to have a functional (as in functional programming) UI architecture.
+
+=== Build
+
+[source,sh]
+----
+make        # compile the code
+make server # start the development web server
+            #   npm is used to install http-server to serve files
+----
+And view it at http://localhost:8080

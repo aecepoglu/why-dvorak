@@ -19,4 +19,4 @@ val sample_qwerty_data : data_t
 
 val lookup_of_data : data_t -> lookup_t
 
-val view : ?highlit_key:char option -> data_t -> 'a Vdom.vdom
+val view : ?highlit_key:char option -> string -> data_t -> 'a Vdom.vdom
