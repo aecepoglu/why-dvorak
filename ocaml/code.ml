@@ -35,11 +35,7 @@ module Stats = struct
            | Same_finger
            | Distance
 
-  let get_same_hand x = x.same_hand
-  let get_same_finger x = x.same_finger
-  let get_distance x = x.distance
-
-  let get k x = match k with
+  let get x = function
     | Same_hand -> x.same_hand
     | Same_finger -> x.same_finger
     | Distance -> x.distance
@@ -61,12 +57,6 @@ module Stats = struct
     same_finger = x;
     distance = x;
   }
-
-  let list x = [
-    Same_hand, x.same_hand;
-    Same_finger, x.same_finger;
-    Distance, x.distance;
-  ]
 end
 
 type typing_analysis = {
@@ -118,7 +108,7 @@ let update model = function
                                                last_hand = Kbdlayout.Left;
                                                last_finger = Kbdlayout.Thumb;
                                              })
-                             model.analyses;
+                            model.analyses;
               }
   | `NextChar -> (match model.state with
       | Playing i when (i + 1) < String.length model.passage ->
@@ -167,16 +157,16 @@ let find_best_stats l =
        (fun acc it -> (Stats.map2 (fun a b -> (it.name, b) :: a) acc it.stats))
        (Stats.init [])
   |> (fun x ->
-       let cmp (_, a_val as a) (_, b_val as b) = if a_val < b_val
-                                                           then a
-                                                           else b
-       in
-         Stats.map (fun a -> a
-                             |> find_best_in_list cmp
-                             |> fst
-                   ) x
-     )
-  
+      let cmp (_, a_val as a) (_, b_val as b) = if a_val < b_val
+        then a
+        else b
+      in
+        Stats.map (fun a -> a
+                            |> find_best_in_list cmp
+                            |> fst
+                  ) x
+    )
+
 
 let view model =
   let play_button state = match state with
@@ -195,28 +185,30 @@ let view model =
   in
   let view_stats () =
     let best_stats = find_best_stats model.analyses in
-    elt "table" ~a:[attr "id" "stats"] (
-      elt "tr" [
-        elt "th" [];
-        elt "th" ~a:[class_ "numerical"] [text "same hand"];
-        elt "th" ~a:[class_ "numerical"] [text "same finger"];
-        elt "th" ~a:[class_ "numerical"] [text "distance"];
-      ]
-      :: List.map (fun {name; stats; _} -> 
-          elt "tr" (
-            (elt "th" [text name])
-            :: (stats
-                |> Stats.list
-                |> List.map (fun (k, v) ->
-                              elt "td" ~a:[class_ ("numerical" ^ if name = (Stats.get k best_stats)
-                                                                 then " best-stat"
-                                                                 else ""
-                                          )] [text (string_of_int v)]
-                            )
-               )
-          )
-        ) model.analyses
-    ) in
+      elt "table" ~a:[attr "id" "stats"] (
+        elt "tr" [
+          elt "th" [];
+          elt "th" ~a:[class_ "numerical"] [text "same hand"];
+          elt "th" ~a:[class_ "numerical"] [text "same finger"];
+          elt "th" ~a:[class_ "numerical"] [text "distance"];
+        ]
+        :: List.map (fun {name; stats; _} -> 
+            let stat_cell k = 
+              elt "td" ~a:[class_ ("numerical"
+                                   ^ if name = Stats.get best_stats k
+                                   then " best-stat"
+                                   else ""
+                                  )]
+                [text (string_of_int (Stats.get stats k))];
+            in
+              elt "tr" [
+                (elt "th" [text name]);
+                (stat_cell Stats.Same_hand);
+                (stat_cell Stats.Same_finger);
+                (stat_cell Stats.Distance);
+              ]
+          ) model.analyses
+      ) in
   let view_analysis passage state analysis =
     let highlit_key = (match state with
         | Playing i -> Some (Char.uppercase_ascii passage.[i])
