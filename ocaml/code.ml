@@ -14,22 +14,66 @@ let string_of_chars chars =
   |> List.map (String.make 1)
   |> String.concat ""
 
+let find_best_in_list cmp l =
+  match l with
+  | h :: t -> List.fold_left cmp h t
+  | [] -> failwith "list can't be empty"
+
 
 (************************)
 
 open Vdom
 
-type 'a stats = {
-  same_hand: 'a;
-  same_finger: 'a;
-  distance: int;
-}
+module Stats = struct
+  type 'a t = {
+    same_hand: 'a;
+    same_finger: 'a;
+    distance: 'a;
+  }
+
+  type key = Same_hand
+           | Same_finger
+           | Distance
+
+  let get_same_hand x = x.same_hand
+  let get_same_finger x = x.same_finger
+  let get_distance x = x.distance
+
+  let get k x = match k with
+    | Same_hand -> x.same_hand
+    | Same_finger -> x.same_finger
+    | Distance -> x.distance
+
+  let map f x = {
+    same_hand = f x.same_hand;
+    same_finger = f x.same_finger;
+    distance = f x.distance;
+  }
+
+  let map2 f x y = {
+    same_hand = f x.same_hand y.same_hand;
+    same_finger = f x.same_finger y.same_finger;
+    distance = f x.same_finger y.same_finger;
+  }
+
+  let init x = {
+    same_hand = x;
+    same_finger = x;
+    distance = x;
+  }
+
+  let list x = [
+    Same_hand, x.same_hand;
+    Same_finger, x.same_finger;
+    Distance, x.distance;
+  ]
+end
 
 type typing_analysis = {
   name: string;
   layout_data: Kbdlayout.data_t;
   keyboard: Kbdlayout.lookup_t;
-  stats: int stats;
+  stats: int Stats.t;
   last_hand: Kbdlayout.hand;
   last_finger: Kbdlayout.finger;
 }
@@ -43,6 +87,8 @@ type model = {
   analyses: typing_analysis list;
   passage: string;
 }
+
+
 
 let update_analysis letter analysis =
   match Hashtbl.find_opt analysis.keyboard letter with
@@ -98,11 +144,7 @@ let init = {
       name = "Dvorak";
       layout_data = Kbdlayout.sample_dvorak_data;
       keyboard = Kbdlayout.lookup_of_data Kbdlayout.sample_dvorak_data;
-      stats = {
-        same_hand = 0;
-        same_finger = 0;
-        distance = 0;
-      };
+      stats = Stats.init 0;
       last_hand = Kbdlayout.Left;
       last_finger = Kbdlayout.Thumb;
     };
@@ -110,11 +152,7 @@ let init = {
       name = "Qwerty";
       layout_data = Kbdlayout.sample_qwerty_data;
       keyboard = Kbdlayout.lookup_of_data Kbdlayout.sample_qwerty_data;
-      stats = {
-        same_hand = 0;
-        same_finger = 0;
-        distance = 0;
-      };
+      stats = Stats.init 0;
       last_hand = Kbdlayout.Left;
       last_finger = Kbdlayout.Thumb;
     }
@@ -123,11 +161,28 @@ let init = {
 
 let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
 
+let find_best_stats l =
+  l
+  |> List.fold_left
+       (fun acc it -> (Stats.map2 (fun a b -> (it.name, b) :: a) acc it.stats))
+       (Stats.init [])
+  |> (fun x ->
+       let cmp (_, a_val as a) (_, b_val as b) = if a_val < b_val
+                                                           then a
+                                                           else b
+       in
+         Stats.map (fun a -> a
+                             |> find_best_in_list cmp
+                             |> fst
+                   ) x
+     )
+  
+
 let view model =
   let play_button state = match state with
-    | Playing _ -> button "Stop" `Reset
-    | Finished -> button "Reset" `Reset
-    | Ready -> button "Play" `Start
+    | Playing _ -> button "◼ stop" `Reset
+    | Finished -> button "↶ reset" `Reset
+    | Ready -> button "▶ play" `Start
   in
   let scrolling_text state passage =
     div ~a:[attr "id" "passage"] [
@@ -139,6 +194,7 @@ let view model =
     ]
   in
   let view_stats () =
+    let best_stats = find_best_stats model.analyses in
     elt "table" ~a:[attr "id" "stats"] (
       elt "tr" [
         elt "th" [];
@@ -147,12 +203,18 @@ let view model =
         elt "th" ~a:[class_ "numerical"] [text "distance"];
       ]
       :: List.map (fun {name; stats; _} -> 
-          elt "tr" [
-            elt "th" [text name];
-            elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.same_hand)];
-            elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.same_finger)];
-            elt "td" ~a:[class_ "numerical"] [text (string_of_int stats.distance)];
-          ];
+          elt "tr" (
+            (elt "th" [text name])
+            :: (stats
+                |> Stats.list
+                |> List.map (fun (k, v) ->
+                              elt "td" ~a:[class_ ("numerical" ^ if name = (Stats.get k best_stats)
+                                                                 then " best-stat"
+                                                                 else ""
+                                          )] [text (string_of_int v)]
+                            )
+               )
+          )
         ) model.analyses
     ) in
   let view_analysis passage state analysis =
@@ -164,8 +226,10 @@ let view model =
   in
     div [
       div (List.map (view_analysis model.passage model.state) model.analyses);
-      (play_button model.state);
-      (scrolling_text model.state model.passage);
+      div [
+        (play_button model.state);
+        (scrolling_text model.state model.passage);
+      ];
       (match model.state with
        | Playing _ | Finished -> view_stats ()
        | _ -> elt "span" []
