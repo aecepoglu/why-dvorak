@@ -71,6 +71,7 @@ type typing_analysis = {
 type text_player_state = Ready
                        | Playing of int
                        | Finished
+                       | EditingText
 
 type model = {
   state: text_player_state;
@@ -125,6 +126,13 @@ let update model = function
       | Finished -> Ready
       | s -> s
     )}
+  | `ToggleEditText -> {model with state = (match model.state with
+      | Playing _ as s -> s
+      | EditingText -> Ready
+      | Ready | Finished -> EditingText
+    )}
+  | `ChangeText passage -> {model with passage}
+
 
 let init = {
   state = Ready;
@@ -173,15 +181,36 @@ let view model =
     | Playing _ -> button "◼ stop" `Reset
     | Finished -> button "↶ reset" `Reset
     | Ready -> button "▶ play" `Start
+    | EditingText -> input [] ~a:[type_button; disabled true; value "(editing text)"]
   in
   let scrolling_text state passage =
-    div ~a:[attr "id" "passage"] [
-      let i = (match state with
-          | Playing i -> i
-          | _ -> 0
-        ) in
-        text (String.sub passage i (String.length passage - i))
-    ]
+    let i = (match state with
+        | Playing i -> i
+        | _ -> 0
+      ) in
+      div [
+        div ~a:[attr "id" "passage"] [
+          (match state with
+          | EditingText -> elt "textarea" ~a:[int_attr "rows" 10;
+                                              int_attr "cols" 80;
+                                              oninput (fun s -> `ChangeText s)
+                                             ]
+                             [text passage]
+          | _ -> text (String.sub passage i (String.length passage - i))
+          )
+        ];
+        input [] ~a:[type_button;
+                     onclick (fun _ -> `ToggleEditText);
+                     disabled (match state with
+                         | Playing _ -> true
+                         | _         -> false
+                       );
+                     value (match state with
+                         | EditingText -> "save text"
+                         | _           -> "edit text"
+                       );
+                    ];
+      ]
   in
   let view_stats () =
     let best_stats = find_best_stats model.analyses in
