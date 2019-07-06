@@ -1,0 +1,39 @@
+#passage
+	display: inline-block
+	border: 1px solid
+	padding: 1em
+
+%bordered
+	border: 1px solid
+	border-collapse: collapse
+
+table
+	@extend %bordered
+
+th, td
+	@extend %bordered
+	padding: 0.5em
+
+	&.numerical
+		text-align: right
+
+td.best-stat::before
+	content: "✪ "
+	color: orange
+
+rect
+	stroke: black
+
+div.keyboard
+	margin: 10px
+
+	.title
+		color: red
+		font-size: 24px
+
+#signature
+	border-top: 1px solid
+	padding-top: 0.2em
+	text-align: center
+	font-size: 0.7em
+
