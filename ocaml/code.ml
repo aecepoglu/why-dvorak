@@ -157,8 +157,6 @@ let init = {
   ];
 }
 
-let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
-
 let find_best_stats l =
   l
   |> List.fold_left
@@ -175,6 +173,7 @@ let find_best_stats l =
                   ) x
     )
 
+let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
 
 let view model =
   let play_button state = match state with
@@ -182,6 +181,19 @@ let view model =
     | Finished -> button "↶ reset" `Reset
     | Ready -> button "▶ play" `Start
     | EditingText -> input [] ~a:[type_button; disabled true; value "(editing text)"]
+  in
+  let edit_button state =
+    input [] ~a:[type_button;
+                 onclick (fun _ -> `ToggleEditText);
+                 disabled (match state with
+                     | Playing _ -> true
+                     | _         -> false
+                   );
+                 value (match state with
+                     | EditingText -> "save text"
+                     | _           -> "edit text"
+                   );
+                ];
   in
   let scrolling_text state passage =
     let i = (match state with
@@ -199,22 +211,16 @@ let view model =
           | _ -> text (String.sub passage i (String.length passage - i))
           )
         ];
-        input [] ~a:[type_button;
-                     onclick (fun _ -> `ToggleEditText);
-                     disabled (match state with
-                         | Playing _ -> true
-                         | _         -> false
-                       );
-                     value (match state with
-                         | EditingText -> "save text"
-                         | _           -> "edit text"
-                       );
-                    ];
       ]
   in
-  let view_stats () =
-    let best_stats = find_best_stats model.analyses in
-      elt "table" ~a:[attr "id" "stats"] (
+  let view_stats state analyses =
+    let best_stats = find_best_stats analyses in
+    let classes = match state with
+                  | Finished
+                  | Playing _ -> ""
+                  | _         -> "hidden"
+    in
+      elt "table" ~a:[attr "id" "stats"; class_ classes] (
         elt "tr" [
           elt "th" [];
           elt "th" ~a:[class_ "numerical"] [text "same hand"];
@@ -236,8 +242,9 @@ let view model =
                 (stat_cell Stats.Same_finger);
                 (stat_cell Stats.Distance);
               ]
-          ) model.analyses
-      ) in
+          ) analyses
+      )
+  in
   let view_analysis passage state analysis =
     let highlit_key = (match state with
         | Playing i -> Some (Char.uppercase_ascii passage.[i])
@@ -245,16 +252,14 @@ let view model =
       ) in
       Kbdlayout.view ~highlit_key analysis.name analysis.layout_data 
   in
-    div [
+    div ~a:[style "text-align" "center"] [
       div (List.map (view_analysis model.passage model.state) model.analyses);
       div [
         (play_button model.state);
-        (scrolling_text model.state model.passage);
+        (edit_button model.state);
       ];
-      (match model.state with
-       | Playing _ | Finished -> view_stats ()
-       | _ -> elt "span" []
-      );
+      (scrolling_text model.state model.passage);
+      (view_stats model.state model.analyses);
     ]
 
 let app = simple_app ~init ~view ~update ()
