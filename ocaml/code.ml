@@ -96,6 +96,19 @@ let update_analysis letter analysis =
        }
   | None -> analysis
 
+let finish_analyses model =
+  let rec aux analyses = function
+    | Playing i when (i + 1) < String.length model.passage ->
+      let c = Char.uppercase_ascii model.passage.[i] in
+        aux (List.map (update_analysis c) analyses) (Playing (i + 1))
+    | Playing _
+    | Finished
+    | EditingText -> analyses
+    | Ready -> aux analyses (Playing 0)
+  in
+    {model with state = Finished;
+                analyses = aux model.analyses model.state}
+
 let update model = function
   | `Start -> {model with
                state = Playing 0;
@@ -111,6 +124,7 @@ let update model = function
                                              })
                             model.analyses;
               }
+  | `End -> finish_analyses model
   | `NextChar -> (match model.state with
       | Playing i when (i + 1) < String.length model.passage ->
          let c = Char.uppercase_ascii model.passage.[i] in
@@ -176,11 +190,12 @@ let find_best_stats l =
 let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
 
 let view model =
-  let play_button state = match state with
-    | Playing _ -> button "◼ stop" `Reset
-    | Finished -> button "↶ reset" `Reset
-    | Ready -> button "▶ play" `Start
-    | EditingText -> input [] ~a:[type_button; disabled true; value "(editing text)"]
+  let play_button state = div ~a:[style "display" "inline-block"] ( match state with
+    | Playing _ -> [ button "◼ stop" `Reset; button "▶▶ end" `End  ]
+    | Finished -> [ button "↶ reset" `Reset ]
+    | Ready -> [ button "▶ play" `Start ]
+    | EditingText -> [ input [] ~a:[type_button; disabled true; value "(editing text)"] ]
+  )
   in
   let edit_button state =
     input [] ~a:[type_button;
