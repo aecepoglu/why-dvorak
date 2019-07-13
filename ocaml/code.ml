@@ -1,6 +1,3 @@
-let sample_text = "A wet brown dog came running and did not bark, lifting a wet feather of a tail. The man followed in a wet black oilskin jacket, like a chauffeur, and face flushed a little. She felt him recoil in his quick walk, when he saw her. She stood up in the handbreadth of dryness under the rustic porch. He saluted without speaking, coming slowly near. She began to withdraw."
-;;
-
 let chars_of_string s =
   let rec aux i =
     if i < String.length s
@@ -49,7 +46,7 @@ module Stats = struct
   let map2 f x y = {
     same_hand = f x.same_hand y.same_hand;
     same_finger = f x.same_finger y.same_finger;
-    distance = f x.same_finger y.same_finger;
+    distance = f x.distance y.distance;
   }
 
   let init x = {
@@ -86,6 +83,8 @@ type update_msg = Start
                 | ToggleEdit
                 | ChangeText of string
                 | RemoveKeyboard of typing_analysis
+                | AddKeyboard of string * Kbdlayout.data_t
+                | DoNothing
 
 let update_analysis letter analysis =
   match Hashtbl.find_opt analysis.keyboard letter with
@@ -153,11 +152,20 @@ let update model = function
     )}
   | ChangeText passage -> {model with passage}
   | RemoveKeyboard analysis -> {model with analyses = List.filter ((<>) analysis) model.analyses}
+  | AddKeyboard (name, layout_data) -> {model with
+                                        analyses = ({name;
+                                                     layout_data;
+                                                     keyboard = Kbdlayout.lookup_of_data layout_data;
+                                                     stats = Stats.init 0;
+                                                     last_hand = Kbdlayout.Left;
+                                                     last_finger = Kbdlayout.Thumb;
+                                                    } :: model.analyses)}
+  | DoNothing -> model
 
 
 let init = {
   state = Ready;
-  passage = sample_text;
+  passage = Sampletexts.sentence;
   analyses = [
     {
       name = "Dvorak";
@@ -194,19 +202,24 @@ let find_best_stats l =
                   ) x
     )
 
-let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt]
+let button txt msg = input [] ~a:[onclick (fun _ -> msg);
+                                  type_button;
+                                  class_ "interactive";
+                                  value txt
+                                 ]
 
 let view model =
-  let play_button state = div ~a:[style "display" "inline-block"] ( match state with
-    | Playing _ -> [ button "◼ stop" Reset; button "▶▶ end" End  ]
-    | Finished -> [ button "◀◀ reset" Reset ]
-    | Ready -> [ button "▶ play" Start ]
-    | Editing -> [ input [] ~a:[type_button; disabled true; value "▷ play"] ]
-  )
+  let play_button state = div ~a:[style "display" "inline-block"] (match state with
+      | Playing _ -> [ button "◼ stop" Reset; button "▶▶ end" End  ]
+      | Finished  -> [ button "◀◀ reset" Reset ]
+      | Ready     -> [ button "▶ play" Start ]
+      | Editing   -> [ input [] ~a:[type_button; disabled true; value "▷ play"] ]
+    )
   in
   let edit_button state =
     input [] ~a:[type_button;
                  onclick (fun _ -> ToggleEdit);
+                 class_ "interactive";
                  disabled (match state with
                      | Playing _ -> true
                      | _         -> false
@@ -223,16 +236,28 @@ let view model =
         | _ -> 0
       ) in
       div [
-        div ~a:[attr "id" "passage"] [
+        div ~a:[attr "id" "passage"]
           (match state with
-          | Editing -> elt "textarea" ~a:[int_attr "rows" 10;
-                                              int_attr "cols" 80;
-                                              oninput (fun s -> ChangeText s)
-                                             ]
-                             [text passage]
-          | _ -> text (String.sub passage i (String.length passage - i))
+           | Editing -> [ elt "select" ~a:[
+               oninput (function
+                   | "one sentence"    -> ChangeText Sampletexts.sentence
+                   | "sherlock holmes" -> ChangeText Sampletexts.sherlock
+                   | _ -> DoNothing
+                 );
+             ] [
+               elt "option" ~a:[attr "selected" ""; disabled true] [text "Sample Texts"];
+               elt "option" [text "one sentence"];
+               elt "option" [text "sherlock holmes"];
+             ];
+               elt "br" [];
+               elt "textarea" ~a:[int_attr "rows" 10;
+                                  int_attr "cols" 80;
+                                  oninput (fun s -> ChangeText s)
+                                 ]
+                 [text passage]
+             ]
+           | _ -> [ text (String.sub passage i (String.length passage - i)) ]
           )
-        ];
       ]
   in
   let view_stats state analyses =
@@ -283,16 +308,27 @@ let view model =
         | Editing -> true
         | _ -> false
       ) in
-    elt "keyboard" ~a:[class_ (if in_edit then "" else "hidden")] [
-      div ~a:[class_ "title"] [text "Add New"];
-      div ~a:[attr "id" "create-keyboard-button"] [
-        elt "select" [
-          elt "option" [text "qwerty"];
-          elt "option" [text "dvorak"];
-          elt "option" [text "colemak"];
-        ];
-        elt "a" [text "+"]
-      ]
+    let layout_exists name = List.exists (fun a -> a.name = name) model.analyses
+    in
+      elt "keyboard" ~a:[class_ (if in_edit then "in-edit" else "hidden")] [
+        div ~a:[class_ "title"] [text "Add New"];
+        div ~a:[attr "id" "create-keyboard-button"; class_ "content"] [
+          elt "select" ~a:[oninput (function
+              | "Colemak" -> AddKeyboard ("Colemak", Kbdlayout.sample_colemak_data)
+              | "Dvorak"  -> AddKeyboard ("Dvorak", Kbdlayout.sample_dvorak_data)
+              | "Qwerty"  -> AddKeyboard ("Qwerty", Kbdlayout.sample_qwerty_data)
+              | _ -> DoNothing
+            ); class_ "interactive"] (
+              elt "option" ~a:[attr "selected" ""; disabled true] [text "select"]
+              :: (List.map
+                    (fun name -> (elt "option"
+                                    ~a:[disabled (layout_exists name)]
+                                    [text name])
+                    )
+                    ["Colemak"; "Dvorak"; "Qwerty"]
+                 )
+            )
+        ]
     ]
   in
     div ~a:[style "text-align" "center"] [

@@ -1,7 +1,12 @@
+$primary-color: #D01010
+
 #passage
 	display: inline-block
 	border: 1px solid
 	padding: 1em
+	white-space: pre-wrap
+	text-align: left
+	font-style: italic
 
 %bordered
 	border: 1px solid
@@ -19,7 +24,7 @@ th, td
 
 td.best-stat::before
 	content: "✪ "
-	color: orange
+	color: $primary-color
 
 rect
 	stroke: black
@@ -31,45 +36,53 @@ rect
 	justify-content: center
 
 	keyboard
-		display: inline-block
+		display: flex
+		flex-direction: column
 		margin: 10px
 		position: relative
+		text-align: left
+		$title-fontsize: 24px
+		$title-height: $title-fontsize * 1.2
 
 		svg
 			background-color: lightgray
 
 		.title
-			color: red
-			font-size: 24px
-			line-height: 28px
+			color: $primary-color
+			font-size: $title-fontsize
+			line-height: $title-height
 
-		.curtain
-			position: absolute
-			top: 28px;
-			left: 0px;
-			bottom: 0px
-			right: 0px;
-
+		.content
 			display: none
-			align-items: center
-			justify-content: center;
-			font-size: 2em
-
-			background-color: rgba(0, 0, 100, 0.25)
-		&.in-edit
-			.curtain
-				display: flex
-
-		#create-keyboard-button
-			position: absolute
-			top: 28px
-			left: 0px
-			bottom: 0px
-			right: 0px
-			display: flex
 			align-items: center
 			justify-content: center
 			font-size: 2em
+			background-color: rgba(0, 0, 100, 0.25)
+
+			&:hover
+				background-color: rgba(0, 0, 100, 0.35)
+
+
+			&#create-keyboard-button
+				display: flex
+				flex-grow: 1
+				padding: 0.25em
+
+		.curtain
+			position: absolute
+			top: $title-height
+			bottom: 0px
+			left: 0px
+			right: 0px
+			a
+				background-color: white
+
+		&.in-edit .content
+			display: flex
+
+		#create-keyboard-button select
+			font-size: inherit
+			border: none
 
 #stats
 	display: inline-block
@@ -83,5 +96,6 @@ rect
 	text-align: center
 	font-size: 0.7em
 
-a
+.interactive
 	cursor: pointer
+	color: $primary-color

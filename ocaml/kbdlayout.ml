@@ -39,6 +39,12 @@ let sample_dvorak_data:data_t = [
   [ E;       H('A', Left, Pinky);  H('O', Left, Ring); H('E', Left, Middle); H('U', Left, Index); S('I'); S('D'); H('H', Right, Index); H('T', Right, Middle); H('N', Right, Ring); H('S', Right, Pinky); S('-'); S('\\'); ];
   [ S('<');  S(';');  S('Q'); S('J'); S('K'); S('X'); S('B'); S('M'); S('W'); S('V'); S('Z'); E;      E;       ];
 ]
+let sample_colemak_data:data_t = [
+  [ S('`');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('-'); S('='); E ];
+  [ E;       S('Q'); S('W'); S('F'); S('P'); S('G'); S('J'); S('L'); S('U'); S('Y'); S(';'); S('['); S(']'); S('\\') ];
+  [ E;       H('A', Left, Pinky);  H('R', Left, Ring); H('S', Left, Middle); H('T', Left, Index); S('D'); S('H'); H('N', Right, Index); H('E', Right, Middle); H('I', Right, Ring); H('O', Right, Pinky); S('\''); E; E ];
+  [ E;       S('Z');  S('X'); S('C'); S('V'); S('B'); S('K'); S('M'); S(','); S('.'); S('/'); E; E; E];
+]
 let sample_qwerty_data:data_t = [
   [ S('"');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('*'); S('-');  ];
   [ E;       S('Q'); S('W'); S('E'); S('R'); S('T'); S('Y'); S('U'); S('I'); S('O'); S('P'); S('G'); S('U');  ];
@@ -157,7 +163,7 @@ let view ?(highlit_key=None) ?(in_edit=false) ~onremove label layout =
                              | H (c, _, _)
                              | S c ->
                                 let fill = (match highlit_key with
-                                      Some c' when c = c' -> "yellow"
+                                      Some c' when c = c' -> "#FFA0A0"
                                     | _ -> "white"
                                   ) in
                                 let pos_x = col * l in
@@ -183,13 +189,15 @@ let view ?(highlit_key=None) ?(in_edit=false) ~onremove label layout =
                       )
                     |> List.flatten
   in
+  let max_row_len = List.fold_left (fun acc l -> max acc (List.length l)) 0 layout
+  in
     elt "keyboard" ~a:[class_ (if in_edit then "in-edit" else "")] [
       div ~a:[class_ "title"] [text label];
 
-      svg_elt "svg" ~a:[int_attr "width" (13 * l); int_attr "height" (4 * l)]
+      svg_elt "svg" ~a:[int_attr "width" (max_row_len * l); int_attr "height" (4 * l)]
         key_buttons;
 
-      div ~a:[class_ "curtain"] [
-        (elt "a" ~a:[onclick onremove] [text "remove"])
+      div ~a:[class_ "content curtain"] [
+        (elt "a" ~a:[onclick onremove; class_ "interactive"] [text "remove"])
       ]
     ]
