@@ -146,7 +146,7 @@ let lookup_of_data layout :lookup_t =
     done;
     map
 
-let view ?(highlit_key=None) label layout =
+let view ?(highlit_key=None) ?(in_edit=false) ~onremove label layout =
   let open Vdom in
   let l = 40 in
   let key_buttons = layout
@@ -183,8 +183,13 @@ let view ?(highlit_key=None) label layout =
                       )
                     |> List.flatten
   in
-    div ~a:[class_ "keyboard"] [
+    elt "keyboard" ~a:[class_ (if in_edit then "in-edit" else "")] [
       div ~a:[class_ "title"] [text label];
+
       svg_elt "svg" ~a:[int_attr "width" (13 * l); int_attr "height" (4 * l)]
-        key_buttons
+        key_buttons;
+
+      div ~a:[class_ "curtain"] [
+        (elt "a" ~a:[onclick onremove] [text "remove"])
+      ]
     ]

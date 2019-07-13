@@ -71,7 +71,7 @@ type typing_analysis = {
 type text_player_state = Ready
                        | Playing of int
                        | Finished
-                       | EditingText
+                       | Editing
 
 type model = {
   state: text_player_state;
@@ -79,7 +79,13 @@ type model = {
   passage: string;
 }
 
-
+type update_msg = Start
+                | End
+                | NextChar
+                | Reset
+                | ToggleEdit
+                | ChangeText of string
+                | RemoveKeyboard of typing_analysis
 
 let update_analysis letter analysis =
   match Hashtbl.find_opt analysis.keyboard letter with
@@ -103,14 +109,14 @@ let finish_analyses model =
         aux (List.map (update_analysis c) analyses) (Playing (i + 1))
     | Playing _
     | Finished
-    | EditingText -> analyses
+    | Editing -> analyses
     | Ready -> aux analyses (Playing 0)
   in
     {model with state = Finished;
                 analyses = aux model.analyses model.state}
 
 let update model = function
-  | `Start -> {model with
+  | Start -> {model with
                state = Playing 0;
                analyses = List.map
                             (fun analysis -> { analysis with
@@ -124,8 +130,8 @@ let update model = function
                                              })
                             model.analyses;
               }
-  | `End -> finish_analyses model
-  | `NextChar -> (match model.state with
+  | End -> finish_analyses model
+  | NextChar -> (match model.state with
       | Playing i when (i + 1) < String.length model.passage ->
          let c = Char.uppercase_ascii model.passage.[i] in
            { model with
@@ -135,17 +141,18 @@ let update model = function
       | Playing _ -> { model with state = Finished }
       | s -> { model with state = s }
     )
-  | `Reset -> {model with state = (match model.state with
+  | Reset -> {model with state = (match model.state with
       | Playing _ -> Ready
       | Finished -> Ready
       | s -> s
     )}
-  | `ToggleEditText -> {model with state = (match model.state with
+  | ToggleEdit -> {model with state = (match model.state with
       | Playing _ as s -> s
-      | EditingText -> Ready
-      | Ready | Finished -> EditingText
+      | Editing -> Ready
+      | Ready | Finished -> Editing
     )}
-  | `ChangeText passage -> {model with passage}
+  | ChangeText passage -> {model with passage}
+  | RemoveKeyboard analysis -> {model with analyses = List.filter ((<>) analysis) model.analyses}
 
 
 let init = {
@@ -191,22 +198,22 @@ let button txt msg = input [] ~a:[onclick (fun _ -> msg); type_button; value txt
 
 let view model =
   let play_button state = div ~a:[style "display" "inline-block"] ( match state with
-    | Playing _ -> [ button "◼ stop" `Reset; button "▶▶ end" `End  ]
-    | Finished -> [ button "↶ reset" `Reset ]
-    | Ready -> [ button "▶ play" `Start ]
-    | EditingText -> [ input [] ~a:[type_button; disabled true; value "(editing text)"] ]
+    | Playing _ -> [ button "◼ stop" Reset; button "▶▶ end" End  ]
+    | Finished -> [ button "◀◀ reset" Reset ]
+    | Ready -> [ button "▶ play" Start ]
+    | Editing -> [ input [] ~a:[type_button; disabled true; value "▷ play"] ]
   )
   in
   let edit_button state =
     input [] ~a:[type_button;
-                 onclick (fun _ -> `ToggleEditText);
+                 onclick (fun _ -> ToggleEdit);
                  disabled (match state with
                      | Playing _ -> true
                      | _         -> false
                    );
                  value (match state with
-                     | EditingText -> "save text"
-                     | _           -> "edit text"
+                     | Editing -> "✓ save"
+                     | _           -> "✎ edit"
                    );
                 ];
   in
@@ -218,9 +225,9 @@ let view model =
       div [
         div ~a:[attr "id" "passage"] [
           (match state with
-          | EditingText -> elt "textarea" ~a:[int_attr "rows" 10;
+          | Editing -> elt "textarea" ~a:[int_attr "rows" 10;
                                               int_attr "cols" 80;
-                                              oninput (fun s -> `ChangeText s)
+                                              oninput (fun s -> ChangeText s)
                                              ]
                              [text passage]
           | _ -> text (String.sub passage i (String.length passage - i))
@@ -246,8 +253,8 @@ let view model =
             let stat_cell k = 
               elt "td" ~a:[class_ ("numerical"
                                    ^ if name = Stats.get best_stats k
-                                   then " best-stat"
-                                   else ""
+                                     then " best-stat"
+                                     else ""
                                   )]
                 [text (string_of_int (Stats.get stats k))];
             in
@@ -265,10 +272,31 @@ let view model =
         | Playing i -> Some (Char.uppercase_ascii passage.[i])
         | _ -> None
       ) in
-      Kbdlayout.view ~highlit_key analysis.name analysis.layout_data 
+    let in_edit = (match state with
+        | Editing when (List.length model.analyses > 1) -> true
+        | _ -> false
+      ) in
+      Kbdlayout.view ~highlit_key ~in_edit ~onremove:(fun _ -> RemoveKeyboard analysis) analysis.name analysis.layout_data;
+  in
+  let create_keyboard state =
+    let in_edit = (match state with
+        | Editing -> true
+        | _ -> false
+      ) in
+    elt "keyboard" ~a:[class_ (if in_edit then "" else "hidden")] [
+      div ~a:[class_ "title"] [text "Add New"];
+      div ~a:[attr "id" "create-keyboard-button"] [
+        elt "select" [
+          elt "option" [text "qwerty"];
+          elt "option" [text "dvorak"];
+          elt "option" [text "colemak"];
+        ];
+        elt "a" [text "+"]
+      ]
+    ]
   in
     div ~a:[style "text-align" "center"] [
-      div (List.map (view_analysis model.passage model.state) model.analyses);
+      div ~a:[attr "id" "keyboards"] (create_keyboard model.state :: (List.map (view_analysis model.passage model.state) model.analyses));
       div [
         (play_button model.state);
         (edit_button model.state);
@@ -284,7 +312,7 @@ let () =
   let run () = Vdom_blit.run app
                |> (fun app' ->
                    let _ = Window.set_interval window
-                             (fun () -> Vdom_blit.process app' `NextChar)
+                             (fun () -> Vdom_blit.process app' NextChar)
                              50
                    in
                      app'

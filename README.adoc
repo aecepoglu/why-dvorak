@@ -15,6 +15,6 @@ https://github.com/LexiFi/ocaml-vdom[_Ocaml-vdom_] is used to have a functional 
 ----
 make        # compile the code
 make server # start the development web server
-            #   npm is used to install http-server to serve files
+            #   npm is used to install and run http-server to serve files
 ----
 And view it at http://localhost:8080

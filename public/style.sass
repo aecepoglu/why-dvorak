@@ -24,19 +24,58 @@ td.best-stat::before
 rect
 	stroke: black
 
-div.keyboard
-	display: inline-block
-	margin: 10px
+#keyboards
+	display: flex
+	flex-direction: row
+	flex-wrap: wrap
+	justify-content: center
 
-	.title
-		color: red
-		font-size: 24px
+	keyboard
+		display: inline-block
+		margin: 10px
+		position: relative
+
+		svg
+			background-color: lightgray
+
+		.title
+			color: red
+			font-size: 24px
+			line-height: 28px
+
+		.curtain
+			position: absolute
+			top: 28px;
+			left: 0px;
+			bottom: 0px
+			right: 0px;
+
+			display: none
+			align-items: center
+			justify-content: center;
+			font-size: 2em
+
+			background-color: rgba(0, 0, 100, 0.25)
+		&.in-edit
+			.curtain
+				display: flex
+
+		#create-keyboard-button
+			position: absolute
+			top: 28px
+			left: 0px
+			bottom: 0px
+			right: 0px
+			display: flex
+			align-items: center
+			justify-content: center
+			font-size: 2em
 
 #stats
 	display: inline-block
 
-	&.hidden
-  		display: none
+.hidden
+	display: none !important
 
 #signature
 	border-top: 1px solid
@@ -44,3 +83,5 @@ div.keyboard
 	text-align: center
 	font-size: 0.7em
 
+a
+	cursor: pointer

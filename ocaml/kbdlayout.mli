@@ -6,7 +6,7 @@ type key =
   | H(*home*) of char * hand * finger
   | E(*empty space*)
 
-type data_t = key list list
+type data_t
 
 type lookup_t = (char, (hand * finger * int)) Hashtbl.t
 
@@ -19,4 +19,4 @@ val sample_qwerty_data : data_t
 
 val lookup_of_data : data_t -> lookup_t
 
-val view : ?highlit_key:char option -> string -> data_t -> 'a Vdom.vdom
+val view : ?highlit_key:char option -> ?in_edit:bool -> onremove:(Vdom.mouse_event -> 'a) -> string -> data_t -> 'a Vdom.vdom
