@@ -54,6 +54,11 @@ module Stats = struct
     same_finger = x;
     distance = x;
   }
+
+  let string_of_key = function
+    | Same_hand -> "Same Hand"
+    | Same_finger -> "Same Finger"
+    | Distance -> "Distance"
 end
 
 type typing_analysis = {
@@ -114,6 +119,48 @@ let finish_analyses model =
     {model with state = Finished;
                 analyses = aux model.analyses model.state}
 
+let group_typing_analyses (analyses:typing_analysis list) =
+  List.fold_left
+    (fun acc it -> (Stats.map2 (fun a b -> (it.name, b) :: a) acc it.stats))
+    (Stats.init [])
+    analyses
+  |> Stats.map List.rev
+
+let find_best_stats l =
+  let cmp (_, a_val as a) (_, b_val as b) =
+    if a_val < b_val
+    then a
+    else b
+  in
+    Stats.map (fun a -> a
+                        |> find_best_in_list cmp
+                        |> fst
+              )
+      (group_typing_analyses l)
+
+let init = {
+  state = Ready;
+  passage = Sampletexts.sentence;
+  analyses = [
+    {
+      name = "Dvorak";
+      layout_data = Kbdlayout.sample_dvorak_data;
+      keyboard = Kbdlayout.lookup_of_data Kbdlayout.sample_dvorak_data;
+      stats = Stats.init 0;
+      last_hand = Kbdlayout.Left;
+      last_finger = Kbdlayout.Thumb;
+    };
+    {
+      name = "Qwerty";
+      layout_data = Kbdlayout.sample_qwerty_data;
+      keyboard = Kbdlayout.lookup_of_data Kbdlayout.sample_qwerty_data;
+      stats = Stats.init 0;
+      last_hand = Kbdlayout.Left;
+      last_finger = Kbdlayout.Thumb;
+    }
+  ];
+}
+
 let update model = function
   | Start -> {model with
                state = Playing 0;
@@ -163,50 +210,41 @@ let update model = function
   | DoNothing -> model
 
 
-let init = {
-  state = Ready;
-  passage = Sampletexts.sentence;
-  analyses = [
-    {
-      name = "Dvorak";
-      layout_data = Kbdlayout.sample_dvorak_data;
-      keyboard = Kbdlayout.lookup_of_data Kbdlayout.sample_dvorak_data;
-      stats = Stats.init 0;
-      last_hand = Kbdlayout.Left;
-      last_finger = Kbdlayout.Thumb;
-    };
-    {
-      name = "Qwerty";
-      layout_data = Kbdlayout.sample_qwerty_data;
-      keyboard = Kbdlayout.lookup_of_data Kbdlayout.sample_qwerty_data;
-      stats = Stats.init 0;
-      last_hand = Kbdlayout.Left;
-      last_finger = Kbdlayout.Thumb;
-    }
-  ];
-}
-
-let find_best_stats l =
-  l
-  |> List.fold_left
-       (fun acc it -> (Stats.map2 (fun a b -> (it.name, b) :: a) acc it.stats))
-       (Stats.init [])
-  |> (fun x ->
-      let cmp (_, a_val as a) (_, b_val as b) = if a_val < b_val
-        then a
-        else b
-      in
-        Stats.map (fun a -> a
-                            |> find_best_in_list cmp
-                            |> fst
-                  ) x
-    )
-
 let button txt msg = input [] ~a:[onclick (fun _ -> msg);
                                   type_button;
                                   class_ "interactive";
                                   value txt
                                  ]
+
+let stats_chart (analyses:typing_analysis list) =
+  let stats_by_names = group_typing_analyses analyses in
+  let factors = Stats.map (List.map snd) stats_by_names
+                |> Stats.map (find_best_in_list max)
+                |> Stats.map (fun x -> 200.0 /. (float_of_int x)) in
+    svg_elt "svg" ~a:[int_attr "height" (30 + 85 * List.length analyses)] (
+      List.fold_left (fun (y0, acc) k ->
+          let factor = Stats.get factors k in
+          let stats_by_names' = Stats.get stats_by_names k in
+          let legend = svg_elt "text" ~a:[int_attr "y" (y0 + 15)] [text (Stats.string_of_key k)] in
+            List.fold_left (fun (y0, acc') (name, v) ->
+                let w = int_of_float (factor *. (float_of_int v)) in
+                let r = svg_elt "rect" ~a:[int_attr "x" 0;
+                                           int_attr "y" y0;
+                                           int_attr "width" w;
+                                           int_attr "height" 20;
+                                          ] [] in
+                let t = svg_elt "text" ~a:[int_attr "x" (w + 25);
+                                           int_attr "y" (y0 + 14);
+                                          ] [text name] in
+                  ((y0 + 22), r :: t :: acc')
+              )
+              (y0 + 20, legend :: acc)
+              stats_by_names'
+        )
+        (5, [])
+        [Stats.Same_hand; Stats.Same_finger; Stats.Distance]
+      |> snd
+    )
 
 let view model =
   let play_button state = div ~a:[style "display" "inline-block"] (match state with
@@ -214,8 +252,7 @@ let view model =
       | Finished  -> [ button "◀◀ reset" Reset ]
       | Ready     -> [ button "▶ play" Start ]
       | Editing   -> [ input [] ~a:[type_button; disabled true; value "▷ play"] ]
-    )
-  in
+    ) in
   let edit_button state =
     input [] ~a:[type_button;
                  onclick (fun _ -> ToggleEdit);
@@ -228,8 +265,7 @@ let view model =
                      | Editing -> "✓ save"
                      | _           -> "✎ edit"
                    );
-                ];
-  in
+                ]; in
   let scrolling_text state passage =
     let i = (match state with
         | Playing i -> i
@@ -263,35 +299,38 @@ let view model =
   let view_stats state analyses =
     let best_stats = find_best_stats analyses in
     let classes = match state with
-                  | Finished
-                  | Playing _ -> ""
-                  | _         -> "hidden"
+      | Finished
+      | Playing _ -> ""
+      | _         -> "hidden"
     in
-      elt "table" ~a:[attr "id" "stats"; class_ classes] (
-        elt "tr" [
-          elt "th" [];
-          elt "th" ~a:[class_ "numerical"] [text "same hand"];
-          elt "th" ~a:[class_ "numerical"] [text "same finger"];
-          elt "th" ~a:[class_ "numerical"] [text "distance"];
-        ]
-        :: List.map (fun {name; stats; _} -> 
-            let stat_cell k = 
-              elt "td" ~a:[class_ ("numerical"
-                                   ^ if name = Stats.get best_stats k
-                                     then " best-stat"
-                                     else ""
-                                  )]
-                [text (string_of_int (Stats.get stats k))];
-            in
-              elt "tr" [
-                (elt "th" [text name]);
-                (stat_cell Stats.Same_hand);
-                (stat_cell Stats.Same_finger);
-                (stat_cell Stats.Distance);
-              ]
-          ) analyses
-      )
-  in
+      div ~a:[class_ classes] [
+        elt "table" ~a:[attr "id" "stats"] (
+          elt "tr" [
+            elt "th" [];
+            elt "th" ~a:[class_ "numerical"] [text "same hand"];
+            elt "th" ~a:[class_ "numerical"] [text "same finger"];
+            elt "th" ~a:[class_ "numerical"] [text "distance"];
+          ]
+          :: List.map (fun {name; stats; _} -> 
+              let stat_cell k = 
+                elt "td" ~a:[class_ ("numerical"
+                                     ^ (if name = Stats.get best_stats k
+                                        then " best-stat"
+                                        else "")
+                                    )]
+                  [text (string_of_int (Stats.get stats k))];
+              in
+                elt "tr" [
+                  (elt "th" [text name]);
+                  (stat_cell Stats.Same_hand);
+                  (stat_cell Stats.Same_finger);
+                  (stat_cell Stats.Distance);
+                ]
+            ) analyses
+        );
+        elt "br" [];
+        stats_chart analyses
+      ] in
   let view_analysis passage state analysis =
     let highlit_key = (match state with
         | Playing i -> Some (Char.uppercase_ascii passage.[i])
@@ -301,15 +340,13 @@ let view model =
         | Editing when (List.length model.analyses > 1) -> true
         | _ -> false
       ) in
-      Kbdlayout.view ~highlit_key ~in_edit ~onremove:(fun _ -> RemoveKeyboard analysis) analysis.name analysis.layout_data;
-  in
+      Kbdlayout.view ~highlit_key ~in_edit ~onremove:(fun _ -> RemoveKeyboard analysis) analysis.name analysis.layout_data; in
   let create_keyboard state =
     let in_edit = (match state with
         | Editing -> true
         | _ -> false
       ) in
-    let layout_exists name = List.exists (fun a -> a.name = name) model.analyses
-    in
+    let layout_exists name = List.exists (fun a -> a.name = name) model.analyses in
       elt "keyboard" ~a:[class_ (if in_edit then "in-edit" else "hidden")] [
         div ~a:[class_ "title"] [text "Add New"];
         div ~a:[attr "id" "create-keyboard-button"; class_ "content"] [
@@ -319,17 +356,17 @@ let view model =
               | "Qwerty"  -> AddKeyboard ("Qwerty", Kbdlayout.sample_qwerty_data)
               | _ -> DoNothing
             ); class_ "interactive"] (
-              elt "option" ~a:[attr "selected" ""; disabled true] [text "select"]
-              :: (List.map
-                    (fun name -> (elt "option"
-                                    ~a:[disabled (layout_exists name)]
-                                    [text name])
-                    )
-                    ["Colemak"; "Dvorak"; "Qwerty"]
-                 )
-            )
+            elt "option" ~a:[attr "selected" ""; disabled true] [text "select"]
+            :: (List.map
+                  (fun name -> (elt "option"
+                                  ~a:[disabled (layout_exists name)]
+                                  [text name])
+                  )
+                  ["Colemak"; "Dvorak"; "Qwerty"]
+               )
+          )
         ]
-    ]
+      ]
   in
     div ~a:[style "text-align" "center"] [
       div ~a:[attr "id" "keyboards"] (create_keyboard model.state :: (List.map (view_analysis model.passage model.state) model.analyses));
