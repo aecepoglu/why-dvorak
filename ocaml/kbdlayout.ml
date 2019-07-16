@@ -49,7 +49,7 @@ let sample_qwerty_data:data_t = [
   [ S('"');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('*'); S('-');  ];
   [ E;       S('Q'); S('W'); S('E'); S('R'); S('T'); S('Y'); S('U'); S('I'); S('O'); S('P'); S('G'); S('U');  ];
   [ E;       H('A', Left, Pinky);  H('S', Left, Ring); H('D', Left, Middle); H('F', Left, Index); S('G'); S('H'); H('J', Right, Index); H('K', Right, Middle); H('L', Right, Ring); H('S', Right, Pinky); S('I'); S(';'); ];
-  [ S('<');  S('Z');  S('X'); S('C'); S('V'); S('B'); S('N'); S('M'); S('O'); S('C'); S('.'); E;      E;       ];
+  [ S('<');  S('Z');  S('X'); S('C'); S('V'); S('B'); S('N'); S('M'); S(','); S('.'); S('/'); E;      E;       ];
 ]
 
 let lookup_of_data layout :lookup_t =
