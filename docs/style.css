@@ -1,0 +1,83 @@
+@charset "UTF-8";
+#passage {
+  display: inline-block;
+  border: 1px solid;
+  padding: 1em;
+  white-space: pre-wrap;
+  text-align: left;
+  font-style: italic; }
+
+table, th, td {
+  border: 1px solid;
+  border-collapse: collapse; }
+
+th, td {
+  padding: 0.5em; }
+  th.numerical, td.numerical {
+    text-align: right; }
+
+td.best-stat::before {
+  content: "✪ ";
+  color: #D01010; }
+
+rect {
+  stroke: black; }
+
+#keyboards {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center; }
+  #keyboards keyboard {
+    display: flex;
+    flex-direction: column;
+    margin: 10px;
+    position: relative;
+    text-align: left; }
+    #keyboards keyboard svg {
+      background-color: lightgray; }
+    #keyboards keyboard .title {
+      color: #D01010;
+      font-size: 24px;
+      line-height: 28.8px; }
+    #keyboards keyboard .content {
+      display: none;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      background-color: rgba(0, 0, 100, 0.25); }
+      #keyboards keyboard .content:hover {
+        background-color: rgba(0, 0, 100, 0.35); }
+      #keyboards keyboard .content#create-keyboard-button {
+        display: flex;
+        flex-grow: 1;
+        padding: 0.25em; }
+    #keyboards keyboard .curtain {
+      position: absolute;
+      top: 28.8px;
+      bottom: 0px;
+      left: 0px;
+      right: 0px; }
+      #keyboards keyboard .curtain a {
+        background-color: white; }
+    #keyboards keyboard.in-edit .content {
+      display: flex; }
+    #keyboards keyboard #create-keyboard-button select {
+      font-size: inherit;
+      border: none; }
+
+#stats {
+  display: inline-block; }
+
+.hidden {
+  display: none !important; }
+
+#signature {
+  border-top: 1px solid;
+  padding-top: 0.2em;
+  text-align: center;
+  font-size: 0.7em; }
+
+.interactive {
+  cursor: pointer;
+  color: #D01010; }

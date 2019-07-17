@@ -1,8 +1,17 @@
 = Why Dvorak
 
-A web page for comparing keyboard layouts using statistics
+A web page to race keyboard layouts versus each other.
 
 http://aecepoglu.github.io/why-dvorak[View it *here*]
+
+== Missing Your Keyboard Layout?
+
+Just open an issue and I'll add it to the list. +
+Currently existing layouts:
+
+- Colemak
+- Dvorak
+- Qwerty
 
 == Development
 
@@ -13,8 +22,9 @@ https://github.com/LexiFi/ocaml-vdom[_Ocaml-vdom_] is used to have a functional 
 
 [source,sh]
 ----
-make        # compile the code
-make server # start the development web server
+make        # Compile the code
+            #   refer to ocaml-vdom documentation for how to install it
+make server # Start the development web server
             #   npm is used to install and run http-server to serve files
 ----
 And view it at http://localhost:8080
