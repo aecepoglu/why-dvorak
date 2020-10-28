@@ -7,7 +7,7 @@
   text-align: left;
   font-style: italic; }
 
-table, th, td {
+th, td, table {
   border: 1px solid;
   border-collapse: collapse; }
 
@@ -48,7 +48,7 @@ rect {
       background-color: rgba(0, 0, 100, 0.25); }
       #keyboards keyboard .content:hover {
         background-color: rgba(0, 0, 100, 0.35); }
-      #keyboards keyboard .content#create-keyboard-button {
+      #keyboards keyboard #create-keyboard-button.content {
         display: flex;
         flex-grow: 1;
         padding: 0.25em; }

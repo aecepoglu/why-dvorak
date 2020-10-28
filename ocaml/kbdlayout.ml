@@ -37,7 +37,7 @@ let sample_dvorak_data:data_t = [
   [ S('`');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('['); S(']');  ];
   [ E;       S('\''); S(','); S('.'); S('P'); S('Y'); S('F'); S('G'); S('C'); S('R'); S('L'); S('/'); S('=');  ];
   [ E;       H('A', Left, Pinky);  H('O', Left, Ring); H('E', Left, Middle); H('U', Left, Index); S('I'); S('D'); H('H', Right, Index); H('T', Right, Middle); H('N', Right, Ring); H('S', Right, Pinky); S('-'); S('\\'); ];
-  [ S('<');  S(';');  S('Q'); S('J'); S('K'); S('X'); S('B'); S('M'); S('W'); S('V'); S('Z'); E;      E;       ];
+  [ E;       S(';');  S('Q'); S('J'); S('K'); S('X'); S('B'); S('M'); S('W'); S('V'); S('Z'); E;      E;       ];
 ]
 let sample_colemak_data:data_t = [
   [ S('`');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('-'); S('='); E ];
@@ -46,10 +46,10 @@ let sample_colemak_data:data_t = [
   [ E;       S('Z');  S('X'); S('C'); S('V'); S('B'); S('K'); S('M'); S(','); S('.'); S('/'); E; E; E];
 ]
 let sample_qwerty_data:data_t = [
-  [ S('"');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('*'); S('-');  ];
-  [ E;       S('Q'); S('W'); S('E'); S('R'); S('T'); S('Y'); S('U'); S('I'); S('O'); S('P'); S('G'); S('U');  ];
-  [ E;       H('A', Left, Pinky);  H('S', Left, Ring); H('D', Left, Middle); H('F', Left, Index); S('G'); S('H'); H('J', Right, Index); H('K', Right, Middle); H('L', Right, Ring); H('S', Right, Pinky); S('I'); S(';'); ];
-  [ S('<');  S('Z');  S('X'); S('C'); S('V'); S('B'); S('N'); S('M'); S(','); S('.'); S('/'); E;      E;       ];
+  [ S('`');  S('1');  S('2'); S('3'); S('4'); S('5'); S('6'); S('7'); S('8'); S('9'); S('0'); S('-'); S('=');  ];
+  [ E;       S('Q'); S('W'); S('E'); S('R'); S('T'); S('Y'); S('U'); S('I'); S('O'); S('P'); S('['); S(']');  ];
+  [ E;       H('A', Left, Pinky);  H('S', Left, Ring); H('D', Left, Middle); H('F', Left, Index); S('G'); S('H'); H('J', Right, Index); H('K', Right, Middle); H('L', Right, Ring); H('S', Right, Pinky); S(';'); S('\''); ];
+  [ E;       S('Z');  S('X'); S('C'); S('V'); S('B'); S('N'); S('M'); S(','); S('.'); S('/'); E;      E;       ];
 ]
 
 let lookup_of_data layout :lookup_t =
